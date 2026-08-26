@@ -30,7 +30,7 @@
 > | Role | Armor | Codename | Shape | Contract |
 > |---|---|---|---|---|
 > | `be` | Mark 38 "Igor" | MK38-IGOR | ship or scout | `roles/be.md` |
-> | `fe` | Mark 39 "Starboost" (Gemini) | MK39-STARBOOST | ship or scout | `roles/fe.md` |
+> | `fe` | Mark 39 "Starboost" | MK39-STARBOOST | ship or scout | `roles/fe.md` |
 > | `rn` | Mark 37 "Hammerhead" | MK37-HAMMERHEAD | ship or scout | `roles/rn.md` |
 > | `qa` | Mark 41 "Bones" | MK41-BONES | ship or scout | `roles/qa.md` |
 > | `reviewer-be` | Mark 40 "Shotgun" | MK40-SHOTGUN | scout only | `roles/reviewer-be.md` |

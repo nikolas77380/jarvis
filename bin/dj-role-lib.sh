@@ -49,7 +49,7 @@ dj_role_codename() {
 dj_role_fullname() {
   case "${1:-}" in
     be) printf 'Mark 38 "Igor"\n' ;;
-    fe) printf 'Mark 39 "Starboost" (Gemini)\n' ;;
+    fe) printf 'Mark 39 "Starboost"\n' ;;
     rn) printf 'Mark 37 "Hammerhead"\n' ;;
     qa) printf 'Mark 41 "Bones"\n' ;;
     reviewer-be) printf 'Mark 40 "Shotgun"\n' ;;
