@@ -504,8 +504,8 @@ test_visual_review_uses_shared_completion_owner() {
     || fail "completed investigation teardown failed: $(cat "$home/visual-teardown.err")"
   tasks_in "$home" "done" "$id" --report "data/$id/report.md" --keep 0 >/dev/null
 
-  mkdir -p "$home/.lavish"
-  printf '<html><body>Synthetic sample board</body></html>\n' > "$home/.lavish/sample-board.html"
+  mkdir -p "$home/.edith"
+  printf '<html><body>Synthetic sample board</body></html>\n' > "$home/.edith/sample-board.html"
   run_captain "$home" hold sample-layout-call --title "Choose the sample layout" \
     --reason "captain layout choice pending" --repo sample --origin "$id" >/dev/null \
     || fail "post-teardown visual review could not use the shared hold owner"
@@ -653,7 +653,7 @@ test_bound_channel_answers_close_at_answer_time() {
 
   artifact="$home/data/$id/review.html"
   printf '<h1>Sample eval proposal</h1>\n' > "$artifact"
-  dj_fake_exit0 "$home/fakebin" lavish-axi
+  dj_fake_exit0 "$home/fakebin" edith-axi
   sid=$(run_edith "$home" source-id "$artifact") || fail "could not derive the review source id"
   run_captain "$home" bind "$sid" >/dev/null \
     || fail "could not bind the review source to the keyed-answer intake"
@@ -774,7 +774,7 @@ test_unbound_source_closes_no_hold() {
 
   artifact="$home/data/$id/review.html"
   printf '<h1>Unbound</h1>\n' > "$artifact"
-  dj_fake_exit0 "$home/fakebin" lavish-axi
+  dj_fake_exit0 "$home/fakebin" edith-axi
   sid=$(run_edith "$home" source-id "$artifact") || fail "could not derive the unbound source id"
   run_edith "$home" arm "$artifact" >/dev/null || fail "could not arm the unbound review"
 

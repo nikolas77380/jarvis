@@ -722,7 +722,7 @@ test_bootstrap_reports_missing_x_dependency() {
   home="$TMP_ROOT/boot-missing-x"; mkdir -p "$home"
   fakebin=$(dj_fakebin "$home")
   dj_fake_exit0 "$fakebin" tmux node no-mistakes chrome-devtools-axi curl
-  dj_fake_version_tool "$fakebin" lavish-axi DJ_FAKE_LAVISH_AXI_VERSION 0.1.46
+  dj_fake_version_tool "$fakebin" edith-axi DJ_FAKE_EDITH_AXI_VERSION 0.1.46
   cat > "$fakebin/gh-axi" <<'SH'
 #!/usr/bin/env bash
 if [ "${1:-}" = --version ]; then

@@ -5,7 +5,7 @@ Audience: maintainer verification.
 This record holds reusable version-scoped evidence for the runner's active guarantees.
 `docs/configuration.md` owns the operating contract, each script's header and `--help` own its mechanics, and `.agents/skills/process-event-sources/SKILL.md` owns the handling procedure.
 
-Verified on 2026-07-31 on macOS (Darwin 25.5.0) with `lavish-axi` 0.1.45 installed.
+Verified on 2026-07-31 on macOS (Darwin 25.5.0) with `edith-axi` 0.1.45 installed.
 Generic keyed-answer feed verified on 2026-08-16 on the same platform, against the same published poll response shape.
 Cross-origin keyed-answer feed verified on 2026-08-19 through the real runner and E.D.I.T.H. adapter interface.
 
@@ -14,10 +14,10 @@ Cross-origin keyed-answer feed verified on 2026-08-19 through the real runner an
 Verified at implementation time without upgrading the installed build:
 
 ```sh
-$ lavish-axi --version
+$ edith-axi --version
 0.1.45
-$ lavish-axi poll --help | head -1
-Usage: lavish-axi poll <html-file> [--agent-reply "..."]
+$ edith-axi poll --help | head -1
+Usage: edith-axi poll <html-file> [--agent-reply "..."]
 ```
 
 The same help states that the command "long-polls indefinitely".
@@ -26,13 +26,13 @@ The adapter therefore registers the plain blocking form with no timeout flag, so
 This build exposes no capabilities command and no multiplexed or subscription endpoint:
 
 ```sh
-$ lavish-axi capabilities --json
+$ edith-axi capabilities --json
 error: E.D.I.T.H. Editor expects an HTML file
 code: VALIDATION_ERROR   # exit 2
 ```
 
 Exit 2 with `VALIDATION_ERROR` is positive proof the subcommand does not exist, because the word is parsed as a filename.
-Note that `lavish-axi <anything> --help` exits 0 for any argument, including a nonsense subcommand, so a `--help` exit code can never be used as a capability probe.
+Note that `edith-axi <anything> --help` exits 0 for any argument, including a nonsense subcommand, so a `--help` exit code can never be used as a capability probe.
 
 The adapter depends on none of this: it uses only the published poll shape above.
 
@@ -42,9 +42,9 @@ Re-verified on 2026-08-01 against the same installed build.
 The published poll help states the lifecycle directly:
 
 ```text
-$ lavish-axi poll --help | tr '.' '\n' | grep -F 'Send & End'
+$ edith-axi poll --help | tr '.' '\n' | grep -F 'Send & End'
  `Send & End` ends the session
-$ lavish-axi poll --help | tr '.' '\n' | grep -F 'polling stops'
+$ edith-axi poll --help | tr '.' '\n' | grep -F 'polling stops'
  After that response, polling stops, and the agent must not reopen the session uninvited
 ```
 

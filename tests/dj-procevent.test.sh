@@ -553,46 +553,46 @@ pass "failed terminal retirement is fail-closed and idempotently recoverable"
 # arm command against a stand-in for the published poll shape, so registration,
 # the runner, capture, publication, and retirement all run for real.
 HLT="$TMP_ROOT/hlt"; new_home "$HLT"
-LAVISH_BIN=$(dj_fakebin "$TMP_ROOT/edith-stub")
-LAVISH_POLL_COUNT="$TMP_ROOT/edith-poll-count"
-export LAVISH_POLL_COUNT
-cat > "$LAVISH_BIN/lavish-axi" <<'SH'
+EDITH_BIN=$(dj_fakebin "$TMP_ROOT/edith-stub")
+EDITH_POLL_COUNT="$TMP_ROOT/edith-poll-count"
+export EDITH_POLL_COUNT
+cat > "$EDITH_BIN/edith-axi" <<'SH'
 #!/usr/bin/env bash
-# Stand-in for `lavish-axi poll <file>` around a human `Send & End`: the final
+# Stand-in for `edith-axi poll <file>` around a human `Send & End`: the final
 # feedback is delivered exactly once carrying session_ended, and every later
 # poll returns an empty ended session immediately.
-n=$(cat "$LAVISH_POLL_COUNT" 2>/dev/null || echo 0)
+n=$(cat "$EDITH_POLL_COUNT" 2>/dev/null || echo 0)
 n=$((n + 1))
-printf '%s\n' "$n" > "$LAVISH_POLL_COUNT"
+printf '%s\n' "$n" > "$EDITH_POLL_COUNT"
 if [ "$n" = 1 ]; then
   printf 'session:\n  file: /review.html\n  status: feedback\n  session_ended: true\n  ended_by: user\nfeedback[1]{text}:\n  ship it\n'
 else
   printf 'session:\n  file: /review.html\n  status: ended\n  ended_by: user\n'
 fi
 SH
-chmod +x "$LAVISH_BIN/lavish-axi"
+chmod +x "$EDITH_BIN/edith-axi"
 REVIEW_ART="$TMP_ROOT/review.html"
 printf '<h1>review</h1>\n' > "$REVIEW_ART"
-lavish_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$REVIEW_ART")
-PE_TRACKED+=("$HLT|$lavish_id")
-PATH="$LAVISH_BIN:$PATH" DJ_HOME="$HLT" "$ROOT/bin/dj-procevent-edith.sh" arm "$REVIEW_ART" >/dev/null
+edith_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$REVIEW_ART")
+PE_TRACKED+=("$HLT|$edith_id")
+PATH="$EDITH_BIN:$PATH" DJ_HOME="$HLT" "$ROOT/bin/dj-procevent-edith.sh" arm "$REVIEW_ART" >/dev/null
 for _ in $(seq 1 6); do
-  PATH="$LAVISH_BIN:$PATH" pe "$HLT" reconcile >/dev/null
+  PATH="$EDITH_BIN:$PATH" pe "$HLT" reconcile >/dev/null
   sleep 0.3
 done
-[ "$(cat "$LAVISH_POLL_COUNT")" = 1 ] \
-  || fail "an ended review kept being polled: $(cat "$LAVISH_POLL_COUNT") polls for one Send & End"
-[ "$(count_results "$HLT" "$lavish_id")" = 1 ] \
-  || fail "one Send & End produced $(count_results "$HLT" "$lavish_id") captured results"
+[ "$(cat "$EDITH_POLL_COUNT")" = 1 ] \
+  || fail "an ended review kept being polled: $(cat "$EDITH_POLL_COUNT") polls for one Send & End"
+[ "$(count_results "$HLT" "$edith_id")" = 1 ] \
+  || fail "one Send & End produced $(count_results "$HLT" "$edith_id") captured results"
 [ "$(wake_payloads "$HLT" | sort -u | grep -c .)" = 1 ] \
   || fail "one Send & End produced more than one distinct event: $(wake_payloads "$HLT" | sort -u)"
-assert_contains "$(wake_payloads "$HLT")" "procevent edith $lavish_id 1" "the human's final feedback is announced"
-assert_absent "$HLT/state/procevent/$lavish_id.source" "the ended review source retires automatically"
-assert_absent "$DJ_PROCEVENT_CLAIM_ROOT/$lavish_id.claim" "the ended review releases its owned claim"
-LAVISH_RESULT=$(first_result "$HLT" "$lavish_id" || true)
-assert_grep 'ship it' "$LAVISH_RESULT" "automatic retirement retains the human's final feedback"
-out=$(PATH="$LAVISH_BIN:$PATH" DJ_HOME="$HLT" "$ROOT/bin/dj-procevent-edith.sh" retire "$REVIEW_ART")
-assert_contains "$out" "retired: $lavish_id" "explicit adapter retirement stays supported after automatic retirement"
+assert_contains "$(wake_payloads "$HLT")" "procevent edith $edith_id 1" "the human's final feedback is announced"
+assert_absent "$HLT/state/procevent/$edith_id.source" "the ended review source retires automatically"
+assert_absent "$DJ_PROCEVENT_CLAIM_ROOT/$edith_id.claim" "the ended review releases its owned claim"
+EDITH_RESULT=$(first_result "$HLT" "$edith_id" || true)
+assert_grep 'ship it' "$EDITH_RESULT" "automatic retirement retains the human's final feedback"
+out=$(PATH="$EDITH_BIN:$PATH" DJ_HOME="$HLT" "$ROOT/bin/dj-procevent-edith.sh" retire "$REVIEW_ART")
+assert_contains "$out" "retired: $edith_id" "explicit adapter retirement stays supported after automatic retirement"
 pass "one Send & End yields exactly one captured result, automatic retirement, and no recurring poll"
 
 # --- end-user-aligned regression: an empty board close is not news ------------
@@ -604,13 +604,13 @@ pass "one Send & End yields exactly one captured result, automatic retirement, a
 # capture, the silence verdict, and retirement all run for real.
 HEMPTY="$TMP_ROOT/hempty"; new_home "$HEMPTY"
 EMPTY_BIN=$(dj_fakebin "$TMP_ROOT/edith-empty-stub")
-cat > "$EMPTY_BIN/lavish-axi" <<'SH'
+cat > "$EMPTY_BIN/edith-axi" <<'SH'
 #!/usr/bin/env bash
-# Stand-in for `lavish-axi poll <file>` when the captain closes a board he said
+# Stand-in for `edith-axi poll <file>` when the captain closes a board he said
 # nothing on: an ended session carrying no queued content at all.
 printf 'session:\n  file: /quiet.html\n  status: ended\n  ended_by: user\n'
 SH
-chmod +x "$EMPTY_BIN/lavish-axi"
+chmod +x "$EMPTY_BIN/edith-axi"
 QUIET_ART="$TMP_ROOT/quiet-board.html"
 printf '<h1>quiet</h1>\n' > "$QUIET_ART"
 quiet_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$QUIET_ART")
@@ -650,13 +650,13 @@ pass "an empty board close is captured and recorded handled without ever waking 
 # adapter, one different response shape.
 HANSWER="$TMP_ROOT/hanswer"; new_home "$HANSWER"
 ANSWER_BIN=$(dj_fakebin "$TMP_ROOT/edith-answer-stub")
-cat > "$ANSWER_BIN/lavish-axi" <<'SH'
+cat > "$ANSWER_BIN/edith-axi" <<'SH'
 #!/usr/bin/env bash
-# Stand-in for `lavish-axi poll <file>` on a real `Send & End`: the captain's
+# Stand-in for `edith-axi poll <file>` on a real `Send & End`: the captain's
 # own choice, delivered with session_ended.
 printf 'session:\n  file: /answered.html\n  status: feedback\n  session_ended: true\n  ended_by: user\nprompts[1]{tag,text,prompt}:\n  "choice","Option B","Context data: {\\"question\\":\\"noop-check-routing\\",\\"answer\\":\\"b\\"}"\n'
 SH
-chmod +x "$ANSWER_BIN/lavish-axi"
+chmod +x "$ANSWER_BIN/edith-axi"
 ANSWER_ART="$TMP_ROOT/answered-board.html"
 printf '<h1>answered</h1>\n' > "$ANSWER_ART"
 answer_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$ANSWER_ART")
@@ -681,17 +681,17 @@ pass "a board close carrying the captain's real answer is still announced"
 # over what is really an internal retry. Every scenario below runs through the
 # adapter's own arm command and the real runner, so registration, capture, and
 # publication are exercised for real.
-LAVISH_SCRIPTED_BIN=$(dj_fakebin "$TMP_ROOT/edith-scripted-stub")
-cat > "$LAVISH_SCRIPTED_BIN/lavish-axi" <<'SH'
+EDITH_SCRIPTED_BIN=$(dj_fakebin "$TMP_ROOT/edith-scripted-stub")
+cat > "$EDITH_SCRIPTED_BIN/edith-axi" <<'SH'
 #!/usr/bin/env bash
-# Stand-in for `lavish-axi poll <file>`, scripted per scenario: LAVISH_SCRIPT
+# Stand-in for `edith-axi poll <file>`, scripted per scenario: EDITH_SCRIPT
 # names the response for each successive poll, one word per poll, and its last
 # word repeats forever. `interrupt` is the exact transient response the server
 # returns while the board's marks stay available.
-n=$(cat "$LAVISH_COUNT" 2>/dev/null || echo 0)
+n=$(cat "$EDITH_COUNT" 2>/dev/null || echo 0)
 n=$((n + 1))
-printf '%s\n' "$n" > "$LAVISH_COUNT"
-read -r -a plan <<< "$LAVISH_SCRIPT"
+printf '%s\n' "$n" > "$EDITH_COUNT"
+read -r -a plan <<< "$EDITH_SCRIPT"
 i=$((n - 1))
 [ "$i" -ge "${#plan[@]}" ] && i=$((${#plan[@]} - 1))
 case "${plan[$i]}" in
@@ -705,16 +705,16 @@ case "${plan[$i]}" in
     printf 'session:\n  file: /board.html\n  status: feedback\n  session_ended: true\n  ended_by: user\nfeedback[1]{text}:\n  ship it\n' ;;
   stream)
     printf 'x%.0s' {1..4096}
-    printf 'ready\n' > "$LAVISH_STREAM_READY"
-    while [ ! -e "$LAVISH_STREAM_RELEASE" ]; do sleep 0.05; done
+    printf 'ready\n' > "$EDITH_STREAM_READY"
+    while [ ! -e "$EDITH_STREAM_RELEASE" ]; do sleep 0.05; done
     printf '\n' ;;
 esac
 SH
-chmod +x "$LAVISH_SCRIPTED_BIN/lavish-axi"
-export LAVISH_COUNT LAVISH_SCRIPT
+chmod +x "$EDITH_SCRIPTED_BIN/edith-axi"
+export EDITH_COUNT EDITH_SCRIPT
 # A bounded test override keeps the retry policy's real bound under test without
 # making the suite wait out the production delay.
-export DJ_LAVISH_POLL_RETRY_DELAY=0
+export DJ_EDITH_POLL_RETRY_DELAY=0
 
 # Two interruptions, then the captain's real feedback: the retries are silent and
 # only the feedback becomes a captured result and a check wake.
@@ -723,13 +723,13 @@ RETRY_ART="$TMP_ROOT/retry-board.html"
 printf '<h1>retry</h1>\n' > "$RETRY_ART"
 retry_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$RETRY_ART")
 PE_TRACKED+=("$HRETRY|$retry_id")
-LAVISH_COUNT="$TMP_ROOT/retry-count"; LAVISH_SCRIPT="interrupt interrupt feedback"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HRETRY" \
+EDITH_COUNT="$TMP_ROOT/retry-count"; EDITH_SCRIPT="interrupt interrupt feedback"
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HRETRY" \
   "$ROOT/bin/dj-procevent-edith.sh" arm "$RETRY_ART" >/dev/null
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" pe "$HRETRY" reconcile >/dev/null
+PATH="$EDITH_SCRIPTED_BIN:$PATH" pe "$HRETRY" reconcile >/dev/null
 wait_for "$HRETRY/state/.wake-queue" || fail "feedback after interrupted polls produced no wake"
-[ "$(cat "$LAVISH_COUNT")" = 3 ] \
-  || fail "the interrupted listener was polled $(cat "$LAVISH_COUNT") times, not the two quiet retries plus the delivering poll"
+[ "$(cat "$EDITH_COUNT")" = 3 ] \
+  || fail "the interrupted listener was polled $(cat "$EDITH_COUNT") times, not the two quiet retries plus the delivering poll"
 [ "$(count_results "$HRETRY" "$retry_id")" = 1 ] \
   || fail "a retried interruption produced $(count_results "$HRETRY" "$retry_id") captured results instead of one"
 [ "$(wake_payloads "$HRETRY" | sort -u | grep -c .)" = 1 ] \
@@ -747,19 +747,19 @@ EXH_ART="$TMP_ROOT/exhaust-board.html"
 printf '<h1>exhaust</h1>\n' > "$EXH_ART"
 exh_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$EXH_ART")
 PE_TRACKED+=("$HEXH|$exh_id")
-LAVISH_COUNT="$TMP_ROOT/exhaust-count"; LAVISH_SCRIPT="interrupt"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HEXH" \
+EDITH_COUNT="$TMP_ROOT/exhaust-count"; EDITH_SCRIPT="interrupt"
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HEXH" \
   "$ROOT/bin/dj-procevent-edith.sh" arm "$EXH_ART" >/dev/null
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" pe "$HEXH" start "$exh_id" >/dev/null
-[ "$(cat "$LAVISH_COUNT")" = 13 ] \
-  || fail "the retry bound polled $(cat "$LAVISH_COUNT") times, not the first poll plus 12 bounded retries"
+PATH="$EDITH_SCRIPTED_BIN:$PATH" pe "$HEXH" start "$exh_id" >/dev/null
+[ "$(cat "$EDITH_COUNT")" = 13 ] \
+  || fail "the retry bound polled $(cat "$EDITH_COUNT") times, not the first poll plus 12 bounded retries"
 [ "$(count_results "$HEXH" "$exh_id")" = 1 ] \
   || fail "exhaustion produced $(count_results "$HEXH" "$exh_id") captured results instead of one"
 assert_contains "$(wake_payloads "$HEXH")" "procevent edith $exh_id 1" \
   "the interruption that survives the bound is announced normally"
 assert_grep 'poll response was interrupted' "$(first_result "$HEXH" "$exh_id")" \
   "the announced result is the exact interruption the server returned"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HEXH" \
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HEXH" \
   "$ROOT/bin/dj-procevent-edith.sh" retire "$EXH_ART" >/dev/null
 pass "an interruption that outlives the bounded retries is captured and announced"
 
@@ -770,18 +770,18 @@ OTHER_ART="$TMP_ROOT/other-board.html"
 printf '<h1>other</h1>\n' > "$OTHER_ART"
 other_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$OTHER_ART")
 PE_TRACKED+=("$HOTHER|$other_id")
-LAVISH_COUNT="$TMP_ROOT/other-count"; LAVISH_SCRIPT="other-server-error"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HOTHER" \
+EDITH_COUNT="$TMP_ROOT/other-count"; EDITH_SCRIPT="other-server-error"
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HOTHER" \
   "$ROOT/bin/dj-procevent-edith.sh" arm "$OTHER_ART" >/dev/null
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" pe "$HOTHER" start "$other_id" >/dev/null
-[ "$(cat "$LAVISH_COUNT")" = 1 ] \
-  || fail "an unrelated SERVER_ERROR was retried $(cat "$LAVISH_COUNT") times instead of surfacing at once"
+PATH="$EDITH_SCRIPTED_BIN:$PATH" pe "$HOTHER" start "$other_id" >/dev/null
+[ "$(cat "$EDITH_COUNT")" = 1 ] \
+  || fail "an unrelated SERVER_ERROR was retried $(cat "$EDITH_COUNT") times instead of surfacing at once"
 assert_contains "$(wake_payloads "$HOTHER")" "procevent edith $other_id 1" \
   "an unrelated SERVER_ERROR is captured and announced immediately"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HOTHER" \
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HOTHER" \
   "$ROOT/bin/dj-procevent-edith.sh" retire "$OTHER_ART" >/dev/null
 pass "only the exact interruption is retried; an unrelated SERVER_ERROR still surfaces"
-unset DJ_LAVISH_POLL_RETRY_DELAY
+unset DJ_EDITH_POLL_RETRY_DELAY
 
 # A whitespace variant is not the exact transient response and must surface on
 # the first poll instead of drifting into the quiet retry policy.
@@ -790,15 +790,15 @@ NEAR_ART="$TMP_ROOT/near-board.html"
 printf '<h1>near</h1>\n' > "$NEAR_ART"
 near_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$NEAR_ART")
 PE_TRACKED+=("$HNEAR|$near_id")
-LAVISH_COUNT="$TMP_ROOT/near-count"; LAVISH_SCRIPT="near-interrupt feedback"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HNEAR" DJ_LAVISH_POLL_RETRY_DELAY=0 \
+EDITH_COUNT="$TMP_ROOT/near-count"; EDITH_SCRIPT="near-interrupt feedback"
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HNEAR" DJ_EDITH_POLL_RETRY_DELAY=0 \
   "$ROOT/bin/dj-procevent-edith.sh" arm "$NEAR_ART" >/dev/null
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HNEAR" pe "$HNEAR" start "$near_id" >/dev/null
-[ "$(cat "$LAVISH_COUNT")" = 1 ] \
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HNEAR" pe "$HNEAR" start "$near_id" >/dev/null
+[ "$(cat "$EDITH_COUNT")" = 1 ] \
   || fail "a near-match interruption was retried instead of surfacing on its first poll"
 assert_contains "$(wake_payloads "$HNEAR")" "procevent edith $near_id 1" \
   "a whitespace variant of the interruption is captured and announced immediately"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HNEAR" \
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HNEAR" \
   "$ROOT/bin/dj-procevent-edith.sh" retire "$NEAR_ART" >/dev/null
 pass "only the literal two-line interruption enters the quiet retry policy"
 
@@ -810,8 +810,8 @@ printf '<h1>invalid delay</h1>\n' > "$INVALID_ART"
 invalid_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$INVALID_ART")
 for invalid_delay in 61 invalid; do
   invalid_status=0
-  invalid_out=$(PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HINVALID" \
-    DJ_LAVISH_POLL_RETRY_DELAY="$invalid_delay" \
+  invalid_out=$(PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HINVALID" \
+    DJ_EDITH_POLL_RETRY_DELAY="$invalid_delay" \
     "$ROOT/bin/dj-procevent-edith.sh" arm "$INVALID_ART" 2>&1) || invalid_status=$?
   [ "$invalid_status" -ne 0 ] \
     || fail "arm accepted invalid retry delay: $invalid_delay"
@@ -825,8 +825,8 @@ pass "arm rejects malformed and out-of-range retry delays before registration"
 # Shell-safe cleanup must preserve a valid TMPDIR containing an apostrophe.
 QUOTED_TMPDIR="$TMP_ROOT/poll's-stage"
 mkdir -p "$QUOTED_TMPDIR"
-LAVISH_COUNT="$TMP_ROOT/quoted-count"; LAVISH_SCRIPT="feedback"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" TMPDIR="$QUOTED_TMPDIR" \
+EDITH_COUNT="$TMP_ROOT/quoted-count"; EDITH_SCRIPT="feedback"
+PATH="$EDITH_SCRIPTED_BIN:$PATH" TMPDIR="$QUOTED_TMPDIR" \
   "$ROOT/bin/dj-procevent-edith.sh" poll "$NEAR_ART" >/dev/null
 quoted_staged=("$QUOTED_TMPDIR"/dj-edith-poll.*)
 [ ! -e "${quoted_staged[0]}" ] \
@@ -836,29 +836,29 @@ pass "poll cleanup safely handles an apostrophe-containing TMPDIR"
 HSTREAM="$TMP_ROOT/hstream"; new_home "$HSTREAM"
 STREAM_ART="$TMP_ROOT/stream-board.html"
 STREAM_TMPDIR="$TMP_ROOT/stream-stage"
-LAVISH_STREAM_READY="$TMP_ROOT/stream-ready"
-LAVISH_STREAM_RELEASE="$TMP_ROOT/stream-release"
+EDITH_STREAM_READY="$TMP_ROOT/stream-ready"
+EDITH_STREAM_RELEASE="$TMP_ROOT/stream-release"
 mkdir -p "$STREAM_TMPDIR"
 printf '<h1>stream</h1>\n' > "$STREAM_ART"
 stream_id=$("$ROOT/bin/dj-procevent-edith.sh" source-id "$STREAM_ART")
 PE_TRACKED+=("$HSTREAM|$stream_id")
-LAVISH_COUNT="$TMP_ROOT/stream-count"; LAVISH_SCRIPT="stream"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HSTREAM" \
+EDITH_COUNT="$TMP_ROOT/stream-count"; EDITH_SCRIPT="stream"
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HSTREAM" \
   "$ROOT/bin/dj-procevent-edith.sh" arm "$STREAM_ART" >/dev/null
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" TMPDIR="$STREAM_TMPDIR" \
-  LAVISH_STREAM_READY="$LAVISH_STREAM_READY" LAVISH_STREAM_RELEASE="$LAVISH_STREAM_RELEASE" \
+PATH="$EDITH_SCRIPTED_BIN:$PATH" TMPDIR="$STREAM_TMPDIR" \
+  EDITH_STREAM_READY="$EDITH_STREAM_READY" EDITH_STREAM_RELEASE="$EDITH_STREAM_RELEASE" \
   DJ_PROCEVENT_MAX_OUTPUT_BYTES=100 pe "$HSTREAM" reconcile >/dev/null
-wait_for "$LAVISH_STREAM_READY" || fail "streaming poll did not start"
+wait_for "$EDITH_STREAM_READY" || fail "streaming poll did not start"
 stream_staged=("$STREAM_TMPDIR"/dj-edith-poll.*)
 [ -e "${stream_staged[0]}" ] || fail "streaming poll created no classifier staging file"
 [ "$(wc -c < "${stream_staged[0]}" | tr -d ' ')" -le 100 ] \
   || fail "streaming poll exceeded its bounded classifier staging"
-: > "$LAVISH_STREAM_RELEASE"
+: > "$EDITH_STREAM_RELEASE"
 wait_for "$HSTREAM/state/.wake-queue" || fail "streaming poll produced no wake"
 stream_result=$(first_result "$HSTREAM" "$stream_id" || true)
 [ "$(wc -c < "$stream_result" | tr -d ' ')" -le 100 ] \
   || fail "streaming poll bypassed the runner output bound"
-PATH="$LAVISH_SCRIPTED_BIN:$PATH" DJ_HOME="$HSTREAM" \
+PATH="$EDITH_SCRIPTED_BIN:$PATH" DJ_HOME="$HSTREAM" \
   "$ROOT/bin/dj-procevent-edith.sh" retire "$STREAM_ART" >/dev/null
 pass "E.D.I.T.H. classification staging stays bounded while nonmatches stream"
 

@@ -188,7 +188,7 @@ When that section reports its checks still in progress it names exactly what is 
 
 Bootstrap detects first, asks for consent, and installs only after the captain approves in the current session.
 Do not dispatch until the required tools are present and GitHub authentication is good.
-Use `gh-axi` for GitHub, `chrome-devtools-axi` for browser work, and `lavish-axi` for structured decisions or reports; consult current help rather than memorizing flags.
+Use `gh-axi` for GitHub, `chrome-devtools-axi` for browser work, and `edith-axi` for structured decisions or reports; consult current help rather than memorizing flags.
 A silent bootstrap section needs no action; for any printed actionable diagnostic line, load `bootstrap-diagnostics` and follow its owner procedure.
 `BOOTSTRAP_INFO:` lines are completed no-action facts and do not require loading a skill.
 `secondmate-provisioning` owns startup secondmate sync, liveness, and inherited local-material convergence.
@@ -302,7 +302,7 @@ Treat file or subsystem overlap as a risk signal rather than an automatic reason
 Serialize only for a true semantic dependency, shared mutable external state, incompatible concurrent migration, or another concrete condition that makes independent progress or reconciliation unsafe; same-file editing alone is insufficient, and genuine blockers remain durable.
 When the work is clearly typed, resolve the crewmate's role at intake alongside the delivery mode: be (backend, Mark 38 "Igor"), fe (frontend, Mark 39 "Starboost"), rn (React Native, Mark 37 "Hammerhead"), qa (tests, Mark 41 "Bones"), reviewer-be (Mark 40 "Shotgun"), reviewer-fe (Mark 25 "Striker"), or researcher (F.R.I.D.A.Y.).
 reviewer-be, reviewer-fe, and researcher are knowledge-only roles: their deliverable is a report, so they scaffold and spawn only as scouts, never ships.
-E.D.I.T.H. is not a role: it is the visual review surface (bin/edith, powered by the external lavish-axi tool) that any crewmate or Jarvis itself raises.
+E.D.I.T.H. is not a role: it is the visual review surface (bin/edith, powered by the external edith-axi tool) that any crewmate or Jarvis itself raises.
 Pass --role to both the brief scaffold and the spawn; each refuses an unknown role, and the spawn refuses a brief whose recorded role disagrees with its flag, exactly like the delivery-mode contract.
 A role is an intake judgment, never a mandatory axis: an untyped task stays legal, and bin/dj-role.sh reads a task's recorded role when routing needs it.
 Write the task-specific brief under section 11 before spawning.
@@ -490,7 +490,7 @@ Reach the captain immediately for:
 Do not surface automatic fixes, retries, routine progress, or internal supervision mechanics.
 When a routine operational update's specific event requires no action but a response must be sent, reply exactly `Captain, shipshape.` without characterizing the visible session's unrelated decisions.
 Batch non-urgent updates into the next natural reply.
-Use plain chat for a yes-or-no decision and E.D.I.T.H. (`lavish-axi`) only when several options or a structured report benefit from a visual surface.
+Use plain chat for a yes-or-no decision and E.D.I.T.H. (`edith-axi`) only when several options or a structured report benefit from a visual surface.
 Whenever a PR is mentioned, include its full `https://...` URL before any shorthand reference.
 Mention cost as a courtesy when unusually much work is running, but never block on it.
 

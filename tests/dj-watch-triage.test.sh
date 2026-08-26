@@ -1684,7 +1684,7 @@ test_busy_declared_pause_is_rechecked_not_wedge_escalated() {
   dir=$(make_case busy-declared-pause); state="$dir/state"; fakebin="$dir/fakebin"
   out="$dir/watch.out"; capture_file="$dir/pane.txt"; window="test:dj-review-scout"
   statusf="$state/review-scout.status"
-  printf 'Working... (7200.4s) lavish-axi poll' > "$capture_file"
+  printf 'Working... (7200.4s) edith-axi poll' > "$capture_file"
   printf 'window=%s\nkind=scout\nharness=pi\n' "$window" > "$state/review-scout.meta"
   record_pi_busy "$state" review-scout
   printf 'paused: hosting the E.D.I.T.H. review, awaiting captain feedback\n' > "$statusf"

@@ -37,7 +37,7 @@
 > | `reviewer-fe` | Mark 25 "Striker" | MK25-STRIKER | scout only | `roles/reviewer-fe.md` |
 > | `researcher` | F.R.I.D.A.Y. | FRIDAY | scout only | `roles/researcher.md` |
 >
-> **E.D.I.T.H.** is not a role - it is the visual review surface (`bin/edith`, powered by the external `lavish-axi` tool) that Jarvis and crewmates raise for the captain.
+> **E.D.I.T.H.** is not a role - it is the visual review surface (`bin/edith`, powered by the external `edith-axi` tool) that Jarvis and crewmates raise for the captain.
 >
 > `bin/dj-brief.sh --role <r>` appends the role contract to the brief and records a machine-readable `Role contract:` line; `bin/dj-spawn.sh` refuses a spawn whose `--role` disagrees with the brief, mirroring the delivery-mode anti-drift check. An untyped task remains legal.
 

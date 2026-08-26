@@ -207,7 +207,7 @@ make_toolchain() {
   local dir=$1 fakebin
   fakebin=$(dj_fakebin "$dir")
   dj_fake_exit0 "$fakebin" node chrome-devtools-axi pi-signed
-  dj_fake_version_tool "$fakebin" lavish-axi DJ_FAKE_LAVISH_AXI_VERSION 0.1.46
+  dj_fake_version_tool "$fakebin" edith-axi DJ_FAKE_EDITH_AXI_VERSION 0.1.46
   cat > "$fakebin/gh-axi" <<'SH'
 #!/usr/bin/env bash
 if [ "${1:-}" = --version ]; then

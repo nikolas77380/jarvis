@@ -20,7 +20,7 @@
 #   researcher   FRIDAY           F.R.I.D.A.Y.          investigation  scout only
 #
 # E.D.I.T.H. is NOT a role: it is the visual review surface (bin/edith, powered
-# by the external lavish-axi tool) that any crewmate or Jarvis itself raises.
+# by the external edith-axi tool) that any crewmate or Jarvis itself raises.
 #
 # Sourced by dj-brief.sh, dj-spawn.sh, and dj-role.sh; safe under set -eu.
 

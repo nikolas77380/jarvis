@@ -61,7 +61,7 @@
 # contain anything, and must never be able to forge a decision key.
 #
 # It wraps ONLY the currently published interface, verified against 0.1.45:
-#   Usage: lavish-axi poll <html-file> [--agent-reply "..."]
+#   Usage: edith-axi poll <html-file> [--agent-reply "..."]
 # and that command "long-polls indefinitely" server-side. The adapter therefore
 # runs the plain blocking form with no timeout flag, so results arrive as real
 # server-side events. It adds no periodic discovery, no timer fallback, and no
@@ -127,7 +127,7 @@ cmd_arm() {
   local artifact=${1-} id real
   [ -n "$artifact" ] || usage
   [ "$#" -eq 1 ] || usage
-  command -v lavish-axi >/dev/null 2>&1 || die "lavish-axi is not installed"
+  command -v edith-axi >/dev/null 2>&1 || die "edith-axi is not installed"
   poll_retry_delay >/dev/null
   id=$(cmd_source_id "$artifact") || exit 1
   real=$(perl -MCwd=realpath -e '$p = realpath($ARGV[0]); defined($p) or exit 1; print "$p\n"' "$artifact" 2>/dev/null) \
@@ -207,21 +207,21 @@ poll_response_filter() {  # <response-file>
   ' "$1"
 }
 
-# Seconds between retries. DJ_LAVISH_POLL_RETRY_DELAY is a bounded test
+# Seconds between retries. DJ_EDITH_POLL_RETRY_DELAY is a bounded test
 # override; a malformed or out-of-range value is refused rather than quietly
 # rounded, because silently changing a retry cadence is how a bound stops
 # meaning anything.
 poll_retry_delay() {
-  local delay=${DJ_LAVISH_POLL_RETRY_DELAY-}
+  local delay=${DJ_EDITH_POLL_RETRY_DELAY-}
   if [ -z "$delay" ]; then
     printf '%s\n' "$POLL_RETRY_DELAY_DEFAULT"
     return 0
   fi
   case "$delay" in
-    *[!0-9]*) die "DJ_LAVISH_POLL_RETRY_DELAY must be whole seconds from 0 to $POLL_RETRY_DELAY_MAX: $delay" ;;
+    *[!0-9]*) die "DJ_EDITH_POLL_RETRY_DELAY must be whole seconds from 0 to $POLL_RETRY_DELAY_MAX: $delay" ;;
   esac
   [ "$delay" -le "$POLL_RETRY_DELAY_MAX" ] \
-    || die "DJ_LAVISH_POLL_RETRY_DELAY must be whole seconds from 0 to $POLL_RETRY_DELAY_MAX: $delay"
+    || die "DJ_EDITH_POLL_RETRY_DELAY must be whole seconds from 0 to $POLL_RETRY_DELAY_MAX: $delay"
   printf '%s\n' "$delay"
 }
 
@@ -230,7 +230,7 @@ cmd_poll() {
   local pipeline_status
   [ -n "$artifact" ] || usage
   [ "$#" -eq 1 ] || usage
-  command -v lavish-axi >/dev/null 2>&1 || die "lavish-axi is not installed"
+  command -v edith-axi >/dev/null 2>&1 || die "edith-axi is not installed"
   delay=$(poll_retry_delay) || exit 1
   response=$(mktemp "${TMPDIR:-/tmp}/dj-edith-poll.XXXXXX") || die "cannot stage the poll response"
   printf -v cleanup_command 'rm -f -- %q' "$response"
@@ -246,7 +246,7 @@ cmd_poll() {
     trap "$cleanup_command; trap - $signal; kill -$signal $$" "$signal"
   done
   while :; do
-    lavish-axi poll "$artifact" | poll_response_filter "$response"
+    edith-axi poll "$artifact" | poll_response_filter "$response"
     pipeline_status=("${PIPESTATUS[@]}")
     rc=${pipeline_status[0]}
     filter_rc=${pipeline_status[1]}

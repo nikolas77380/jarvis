@@ -220,7 +220,7 @@ SH
 add_bootstrap_compatible_tools() {
   local fakebin=$1
   dj_fake_exit0 "$fakebin" node chrome-devtools-axi gh treehouse
-  dj_fake_version_tool "$fakebin" lavish-axi DJ_FAKE_LAVISH_AXI_VERSION 0.1.46
+  dj_fake_version_tool "$fakebin" edith-axi DJ_FAKE_EDITH_AXI_VERSION 0.1.46
   cat > "$fakebin/gh-axi" <<'SH'
 #!/usr/bin/env bash
 if [ "${1:-}" = --version ]; then

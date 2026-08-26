@@ -17,7 +17,7 @@ make_home() {  # <name>
   local home="$TMP_ROOT/$1" fakebin
   mkdir -p "$home/state" "$home/data"
   fakebin=$(dj_fakebin "$home")
-  dj_fake_exit0 "$fakebin" lavish-axi
+  dj_fake_exit0 "$fakebin" edith-axi
   printf '%s\n' "$home"
 }
 
@@ -107,7 +107,7 @@ extract_payload() {  # <board-path>
 test_path_is_stable_and_home_scoped() {
   local home
   home=$(make_home path)
-  [ "$(run_board "$home" path)" = "$home/.lavish/bearings-board.html" ] \
+  [ "$(run_board "$home" path)" = "$home/.edith/bearings-board.html" ] \
     || fail "the board path is not the stable home-scoped location"
   pass "path prints the stable home-scoped board location"
 }
@@ -115,7 +115,7 @@ test_path_is_stable_and_home_scoped() {
 test_build_refuses_malformed_payloads_before_touching_the_board() {
   local home data board rc out
   home=$(make_home refusal)
-  board="$home/.lavish/bearings-board.html"
+  board="$home/.edith/bearings-board.html"
   data="$home/payload.json"
 
   printf 'not json\n' > "$data"
@@ -194,7 +194,7 @@ test_build_injects_binds_then_arms() {
   local home data board out sid
   home=$(make_home build)
   data="$home/payload.json"
-  board="$home/.lavish/bearings-board.html"
+  board="$home/.edith/bearings-board.html"
   write_valid_payload "$data"
 
   out=$(run_board "$home" build "$data") || fail "a valid payload did not build"
@@ -217,7 +217,7 @@ test_build_injects_binds_then_arms() {
   grep -qxF '__FM_BEARINGS_BOARD_DATA__' "$board" \
     && fail "the data slot survived injection"
 
-  sid=$(run_lavish_source_id "$home" "$board")
+  sid=$(run_edith_source_id "$home" "$board")
   assert_contains "$out" "bound: $sid" "the binding does not name the board source: $out"
   [ "$(run_decisions "$home" binding "$sid")" = "(any)" ] \
     || fail "the board source is not bound any-origin"
@@ -234,7 +234,7 @@ test_registration_cannot_consume_before_any_origin_binding() {
   origin=order-proof-review
   key=captain-choice
   hold="$origin-decision-$key"
-  board="$home/.lavish/bearings-board.html"
+  board="$home/.edith/bearings-board.html"
 
   cp "$ROOT/.tasks.toml" "$home/.tasks.toml"
   cat > "$home/data/backlog.md" <<'EOF'
@@ -260,15 +260,15 @@ EOF
 set -eu
 if [ "${1:-}" = arm ]; then
   artifact=${2:-}
-  "$REAL_LAVISH_ADAPTER" arm "$artifact" >/dev/null
-  sid=$("$REAL_LAVISH_ADAPTER" source-id "$artifact")
+  "$REAL_EDITH_ADAPTER" arm "$artifact" >/dev/null
+  sid=$("$REAL_EDITH_ADAPTER" source-id "$artifact")
   "$REAL_PROCEVENT" start "$sid" >/dev/null
   exit 0
 fi
-exec "$REAL_LAVISH_ADAPTER" "$@"
+exec "$REAL_EDITH_ADAPTER" "$@"
 SH
   chmod +x "$runtime/bin/dj-procevent-edith.sh"
-  cat > "$home/fakebin/lavish-axi" <<'SH'
+  cat > "$home/fakebin/edith-axi" <<'SH'
 #!/usr/bin/env bash
 if [ "${1:-}" != poll ]; then
   exit 0
@@ -281,13 +281,13 @@ prompts[1]{uid,prompt,selector,tag,text}:
   "2","Order proof: yes\\n\\nContext data:\\n{\\n  \\"question\\": \\"$ORDER_PROOF_HOLD\\",\\n  \\"answer\\": \\"yes\\"\\n}","form",choice,"Order proof: yes"
 EOF
 SH
-  chmod +x "$home/fakebin/lavish-axi"
+  chmod +x "$home/fakebin/edith-axi"
 
   PATH="$home/fakebin:$PATH" DJ_ROOT_OVERRIDE="$runtime" DJ_HOME="$home" \
     DJ_STATE_OVERRIDE="$home/state" DJ_DATA_OVERRIDE="$home/data" \
     DJ_PROCEVENT_CLAIM_ROOT="$home/procevent-claims" \
     DJ_BEARINGS_BOARD_TEMPLATE="$ROOT/.agents/skills/bearings/assets/board-template.html" \
-    REAL_LAVISH_ADAPTER="$ROOT/bin/dj-procevent-edith.sh" \
+    REAL_EDITH_ADAPTER="$ROOT/bin/dj-procevent-edith.sh" \
     REAL_PROCEVENT="$ROOT/bin/dj-procevent.sh" ORDER_PROOF_HOLD="$hold" \
     "$runtime/bin/dj-bearings-board.sh" build "$data" >/dev/null \
     || fail "the order-proof board build failed"
@@ -298,7 +298,7 @@ SH
     "registration consumed its answer before the any-origin binding existed"
   assert_contains "$show" "Resolution mode: answered" \
     "the answer was not closed through the real keyed-answer intake"
-  sid=$(run_lavish_source_id "$home" "$board")
+  sid=$(run_edith_source_id "$home" "$board")
   [ "$(run_decisions "$home" binding "$sid")" = "(any)" ] \
     || fail "the order-proof source did not retain its any-origin binding"
   pass "registration can consume answers only after any-origin binding exists"
@@ -309,18 +309,18 @@ test_build_does_not_bind_or_arm_when_session_start_fails() {
   home=$(make_home serve-failure)
   data="$home/payload.json"
   write_valid_payload "$data"
-  cat > "$home/fakebin/lavish-axi" <<'SH'
+  cat > "$home/fakebin/edith-axi" <<'SH'
 #!/usr/bin/env bash
 exit 1
 SH
-  chmod +x "$home/fakebin/lavish-axi"
+  chmod +x "$home/fakebin/edith-axi"
 
   set +e
   run_board "$home" build "$data" >/dev/null 2>&1
   rc=$?
   set -e
   [ "$rc" -ne 0 ] || fail "build continued after E.D.I.T.H. session establishment failed"
-  sid=$(run_lavish_source_id "$home" "$home/.lavish/bearings-board.html")
+  sid=$(run_edith_source_id "$home" "$home/.edith/bearings-board.html")
   ! run_decisions "$home" binding "$sid" >/dev/null 2>&1 \
     || fail "build bound the board before its E.D.I.T.H. session existed"
   ! run_procevent "$home" list | awk 'NR > 1 { print $1 }' | grep -Fxq "$sid" \
@@ -328,7 +328,7 @@ SH
   pass "build establishes the E.D.I.T.H. session before binding and arming"
 }
 
-run_lavish_source_id() {  # <home> <artifact>
+run_edith_source_id() {  # <home> <artifact>
   local home=$1
   PATH="$home/fakebin:$PATH" DJ_HOME="$home" \
     DJ_STATE_OVERRIDE="$home/state" DJ_DATA_OVERRIDE="$home/data" \
@@ -340,7 +340,7 @@ test_rebuild_is_idempotent_and_does_not_double_arm() {
   local home data board out records
   home=$(make_home rearm)
   data="$home/payload.json"
-  board="$home/.lavish/bearings-board.html"
+  board="$home/.edith/bearings-board.html"
   write_valid_payload "$data"
   run_board "$home" build "$data" >/dev/null || fail "the first build failed"
 
@@ -366,7 +366,7 @@ test_build_refuses_a_template_without_exactly_one_slot() {
   set -e
   [ "$rc" -ne 0 ] || fail "a template with no data slot was accepted"
   assert_contains "$out" "data slot" "the slot refusal did not say why: $out"
-  assert_absent "$home/.lavish/bearings-board.html" "a refused template still produced a board"
+  assert_absent "$home/.edith/bearings-board.html" "a refused template still produced a board"
   pass "build refuses a template without exactly one data slot"
 }
 

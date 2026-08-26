@@ -19,7 +19,7 @@
 #            precedes arm, so the board can never produce an answer that has
 #            nowhere to go (captain-hold-lifecycle's ordering rule, enforced
 #            here rather than left to agent memory). Output starts with
-#            `board: <path>`, then includes lavish-axi's session output and
+#            `board: <path>`, then includes edith-axi's session output and
 #            the remaining status:
 #              served: <path>
 #              bound: <source-id>
@@ -36,7 +36,7 @@
 # the template may display the routing id. Anything else refuses before the
 # existing board is touched.
 #
-# The board path is stable - $DJ_HOME/.lavish/bearings-board.html - so a
+# The board path is stable - $DJ_HOME/.edith/bearings-board.html - so a
 # re-invocation rebuilds the same file in place, which keeps the same E.D.I.T.H.
 # session URL and the same canonical process-event source id. Injection escapes
 # every `<` in the compact JSON as the \u003c string escape, so a payload string
@@ -66,7 +66,7 @@ fail() {
   exit 1
 }
 
-board_path() { printf '%s/.lavish/bearings-board.html\n' "$DJ_HOME"; }
+board_path() { printf '%s/.edith/bearings-board.html\n' "$DJ_HOME"; }
 
 validate_payload() {  # <data.json>
   jq -e --arg schema "$BOARD_SCHEMA" '
@@ -173,8 +173,8 @@ command_build() {
   fi
   printf 'board: %s\n' "$board"
 
-  command -v lavish-axi >/dev/null 2>&1 || fail "lavish-axi is not installed"
-  lavish-axi "$board" || fail "cannot establish the board E.D.I.T.H. session"
+  command -v edith-axi >/dev/null 2>&1 || fail "edith-axi is not installed"
+  edith-axi "$board" || fail "cannot establish the board E.D.I.T.H. session"
   printf 'served: %s\n' "$board"
 
   sid=$("$SCRIPT_DIR/dj-procevent-edith.sh" source-id "$board") \
