@@ -2,6 +2,7 @@
 name: "{{STACK}}-engineer"
 description: "Implementation work scoped to {{APP_PATH}} that should land as an open pull request. Usually invoked BY the orchestrator as a delegated task. Good fit: new features, refactors, bug fixes — anything that needs a branch + PR. Not a fit for exploratory research (use Explore/Plan) or for work whose design decision is still open."
 model: sonnet
+effort: high
 color: blue
 memory: project
 ---
@@ -60,7 +61,9 @@ cost was turns, not reading. So:
 - **Never add or redefine a shared design-system value** ({{DESIGN_SYSTEM}} tokens, shared constants,
   contract schemas) as part of a feature task. That decision has blast radius beyond your diff:
   check first whether the right value already exists and the code is simply reaching for the wrong
-  one, and if nothing fits, stop and ask.
+  one, and if nothing fits, stop and ask. Observed on bridgeks (PR #16): a `Button` component reached
+  for token `text-md` while `--text-lg` was already the exact Figma value; redefining `--text-md`
+  instead would have silently resized everything else using it.
 - Validate every boundary against the shared schemas in `{{CONTRACTS_PKG}}` — never hand-roll a
   parallel check.
 - Respect module boundaries: apps import libs, libs never import apps or each other's internals.

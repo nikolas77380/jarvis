@@ -32,8 +32,24 @@ root    = os.environ["ROOT"]
 OPUS_IN, OPUS_OUT     = 5.0, 25.0
 SONNET_IN, SONNET_OUT = 2.0, 10.0   # intro rate, see header
 
+# On bridgeks the orchestrator moved from opus to a "fable" model tier on 2026-08-21 and is
+# still there; the logic-tier reviewers made the same move and were moved BACK to opus at
+# effort xhigh on 2026-08-26. Do not read either as current - check the agent definitions. Fable is priced here at the opus rate because that figure is NOT VERIFIED -- an
+# unverified number in a cost report is worse than an obvious placeholder, so it is named rather
+# than hidden in an else-branch. Correct it when the real rate is known; until then read fable rows
+# as an UPPER BOUND.  # project-specific: adjust or drop the "fable" tier name/date to match your project's model roster
+#
+# The handoff signal this script exists for does not depend on any of it: the 400k threshold is
+# cache-read tokens per lead message, which is measured, not priced. Only the dollar columns carry
+# the assumption.
+FABLE_IN, FABLE_OUT   = OPUS_IN, OPUS_OUT   # UNVERIFIED -- see above
+
 def rates(model: str):
-    return (SONNET_IN, SONNET_OUT) if "sonnet" in model else (OPUS_IN, OPUS_OUT)
+    if "sonnet" in model:
+        return (SONNET_IN, SONNET_OUT)
+    if "fable" in model:
+        return (FABLE_IN, FABLE_OUT)
+    return (OPUS_IN, OPUS_OUT)
 
 def cost(model, inp, out, cw, cr):
     ri, ro = rates(model)

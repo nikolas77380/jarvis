@@ -10,6 +10,9 @@
 #   Body lines. What happened and why it matters. Keep it to a short paragraph.
 #   EOF
 #
+# The heading's date is prepended for you. Do NOT start the title with one, or the entry comes out
+# as "## 2026-08-20 — 2026-08-20 — ...". Pass the title alone.
+#
 # Env: OVERVIEW_FILE overrides the target (default: OVERVIEW.md next to this script's repo root).
 
 set -euo pipefail
@@ -22,7 +25,7 @@ MAX_ENTRIES=10
 MAX_BYTES=61440   # 60 KB — the backstop; the entry count is the primary rule
 
 if [ $# -lt 1 ]; then
-  echo "usage: $(basename "$0") \"short title\" < body" >&2
+  echo "usage: $(basename "$0") \"short title\" < body   (no date in the title — it is prepended)" >&2
   exit 64
 fi
 title="$1"

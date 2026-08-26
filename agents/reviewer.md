@@ -2,6 +2,7 @@
 name: "{{STACK}}-reviewer"
 description: "Independent review of a PR touching {{APP_PATH}}, dispatched by the orchestrator right after the engineer reports it. Fresh eyes on purpose — does not trust the implementer's summary. This is the LOGIC tier: use it whenever the diff changes what the code decides, and whenever the tier is unclear. Purely mechanical diffs go to `mechanical-reviewer`."
 model: opus
+effort: xhigh
 color: red
 memory: project
 ---
@@ -52,5 +53,10 @@ Lead with `APPROVE` / `REQUEST_CHANGES` plus one sentence. Then findings, most s
 with file, line, and the concrete failure it causes — inputs and state, not a category. Then one line
 per package with the exact command and its result, and an explicit list of what you did **not** check
 and why.
+
+Findings go in your return message plus the report file — not through a named tool. If a brief you
+were handed tells you to use a specific tool for this, confirm it actually exists in your
+environment before relying on it; if it doesn't, say so in your return rather than silently dropping
+the step (a brief must never name a tool without confirming it exists in the agent's environment).
 
 Report to the orchestrator. Post nothing to GitHub unless the brief asks for it.

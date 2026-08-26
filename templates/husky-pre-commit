@@ -1,0 +1,16 @@
+npx lint-staged
+
+# dashboard/index.html is generated from plan/*.md by scripts/dashboard-build.mjs (optional — see
+# templates/dashboard/ in the harness). Regenerate and stage it only when a staged change can
+# affect it, so a commit touching no plan file never churns the generated-at line. Only the English
+# dashboard/index.html is ever staged here — a localized output is gitignored and local-only, if the
+# project's dashboard generator supports localization at all.  # project-specific: drop this block entirely if you did not adopt the dashboard template
+if [ -f scripts/dashboard-build.mjs ] && git diff --cached --name-only | grep -qE '^(plan/[^/]+\.md|scripts/dashboard-build\.mjs)$'; then
+  node scripts/dashboard-build.mjs
+  git add dashboard/index.html
+fi
+
+# Every plan/*.md must be tracked and indexed (scripts/plan-check.sh). Best-effort here — hooks are
+# dead in checkouts without node_modules; the plan-integrity CI job (templates/ci-plan-integrity.yml)
+# is the backstop, and only THIS side can see untracked files at all.
+./scripts/plan-check.sh

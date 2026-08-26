@@ -1,0 +1,11 @@
+  # Its own job, on purpose: a step inserted into an existing "verify"/"test" job could be masked by
+  # an earlier red step in that same job (observed on bridgeks), and this check shares nothing with
+  # such a job anyway — it is a single dependency-free shell script.
+  plan-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Plan integrity
+        run: ./scripts/plan-check.sh

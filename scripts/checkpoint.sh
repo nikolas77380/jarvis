@@ -61,9 +61,32 @@ fi
 
 # 3. Where the review ledger stands, so the next dispatch cannot cross the ceiling of two.
 echo "  →  round ledger:"
-scripts/review-rounds.sh "$TASK" 2>/dev/null | sed -n '2p' | sed 's/^/     /' || true
+# Exit 2 means the ledger could not LOOK (see review-rounds.sh) — show that instead of an empty
+# line. Swallowing it here would undo the whole point of it failing loudly.
+ledger="$(scripts/review-rounds.sh "$TASK" 2>&1)" && ledger_rc=0 || ledger_rc=$?
+if [ "$ledger_rc" -ge 2 ]; then
+  printf '%s\n' "$ledger" | sed 's/^/     /'
+  # An exit code no caller acts on is not a loud failure. A session that cannot read the ledger must
+  # not be told it is clear to dispatch — not knowing the round count is exactly the state the
+  # ceiling exists to prevent dispatching from.
+  problems=$((problems + 1))
+else
+  printf '%s\n' "$ledger" | sed -n '2p' | sed 's/^/     /'
+fi
 
-# 4. What this session costs per turn to remember itself.
+# 4. Ownership overlaps: two active cards claiming the same file must never both be dispatched
+#    (see scripts/owns-check.sh) — an overlap blocks "clear to dispatch" until one card is
+#    re-scoped or sequenced.
+echo "  →  ownership:"
+owns="$(scripts/owns-check.sh 2>&1)" && owns_rc=0 || owns_rc=$?
+if [ "$owns_rc" -ne 0 ]; then
+  printf '%s\n' "$owns" | sed 's/^/     /'
+  problems=$((problems + 1))
+else
+  printf '%s\n' "$owns" | sed 's/^/     /'
+fi
+
+# 5. What this session costs per turn to remember itself.
 if [ "$NOSPEND" != "--no-spend" ]; then
   echo "  →  lead context:"
   scripts/agent-spend.sh 2>/dev/null | grep -E 'lead context re-read|^HANDOFF' | sed 's/^/     /' || true

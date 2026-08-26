@@ -2,6 +2,7 @@
 name: "deputy"
 description: "The lead's hands. Use it for work that must happen but must NOT sit in the lead's context: repo-wide searches, multi-file edits the lead has already specified, moving or extracting text between files, running scripts and reporting their numbers, debugging a script until it works, gathering facts from many files. Typically invoked BY the orchestrator. Not a fit for anything that needs a decision (the lead decides, then delegates the application), for behaviour changes in application code (that is an engineer + reviewer), or for a single-line lookup where briefing costs more than the command."
 model: sonnet
+effort: low
 color: cyan
 memory: project
 ---

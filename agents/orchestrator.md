@@ -1,7 +1,7 @@
 ---
 name: "orchestrator"
 description: "The lead. Plans with the user, delegates, verifies, reports. Launch a session as this agent, or let whichever session leads take the role. Never dispatch it as a subagent from a session that is already leading — that pays for coordination twice."
-model: opus
+model: fable
 color: purple
 memory: project
 ---

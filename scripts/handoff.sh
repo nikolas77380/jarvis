@@ -64,7 +64,29 @@ if [ "$QUIET" != "--quiet" ]; then
 
   # 3. the round ledger, so the next session does not dispatch a review past the ceiling
   echo "  →  round ledger:"
-  scripts/review-rounds.sh "$TASK" 2>/dev/null | sed -n '2p' | sed 's/^/     /' || true
+  # Exit 2 means the ledger could not LOOK (see review-rounds.sh) — show that instead of an empty
+  # line. Swallowing it here would undo the whole point of it failing loudly.
+  ledger="$(scripts/review-rounds.sh "$TASK" 2>&1)" && ledger_rc=0 || ledger_rc=$?
+  if [ "$ledger_rc" -ge 2 ]; then
+    printf '%s\n' "$ledger" | sed 's/^/     /'
+    # An exit code no caller acts on is not a loud failure. A session that cannot read the ledger must
+    # not be told it is clear to dispatch — not knowing the round count is exactly the state the
+    # ceiling exists to prevent dispatching from.
+    problems=$((problems + 1))
+  else
+    printf '%s\n' "$ledger" | sed -n '2p' | sed 's/^/     /'
+  fi
+
+  # 4. ownership overlaps: the next session must not inherit two active cards that both claim one
+  #    file — say so here, before it dispatches either.
+  echo "  →  ownership:"
+  owns="$(scripts/owns-check.sh 2>&1)" && owns_rc=0 || owns_rc=$?
+  if [ "$owns_rc" -ne 0 ]; then
+    printf '%s\n' "$owns" | sed 's/^/     /'
+    problems=$((problems + 1))
+  else
+    printf '%s\n' "$owns" | sed 's/^/     /'
+  fi
 
   echo
   if [ "$problems" -gt 0 ]; then

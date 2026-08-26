@@ -2,6 +2,7 @@
 name: "mechanical-reviewer"
 description: "Review a PR whose changes are MECHANICAL — no branch of logic changes: tests/stories/docs/config, renames, formatting, dependency bumps, comment and copy edits. NOT a fit for anything that changes what the code decides; that goes to the logic-tier reviewer. When in doubt, do not use this agent."
 model: sonnet
+effort: medium
 color: green
 ---
 
@@ -33,7 +34,11 @@ valuable output is an escalation, not an approval.**
    files, no name that now says something different from what the thing does.
 3. **Tests changed for the right reason.** A weakened test — assertion deleted, case skipped,
    expectation loosened to whatever the code now returns — is a finding, always.
-4. **The checks pass, run by you**: `{{TEST_CMD}}`, `{{TYPECHECK_CMD}}`, `{{LINT_CMD}}`. A skipped
+4. **Repo rules that apply mechanically** — restate the project's own conventions that a generic pass
+   won't know: design-system values only from the project's source of truth, export/story
+   requirements for a new component, banned patterns (`any`, ignored type errors), no secret or env
+   file committed.
+5. **The checks pass, run by you**: `{{TEST_CMD}}`, `{{TYPECHECK_CMD}}`, `{{LINT_CMD}}`. A skipped
    suite is "not verified", not "green".
 
 ## Escalate instead of approving when
@@ -49,3 +54,8 @@ attempt the deep review, and do not approve "the rest" — a mixed PR is one PR.
 
 One line: `APPROVE` / `REQUEST_CHANGES` / `ESCALATE` plus why. Then findings with file and line, then
 one line per package with the command you ran and its result. Keep prose minimal.
+
+Findings go in your return message plus the report file — not through a named tool. If a brief you
+were handed tells you to use a specific tool for this, confirm it actually exists in your
+environment before relying on it; if it doesn't, say so in your return rather than silently dropping
+the step (a brief must never name a tool without confirming it exists in the agent's environment).
