@@ -199,7 +199,7 @@ test_build_injects_binds_then_arms() {
 
   out=$(run_board "$home" build "$data") || fail "a valid payload did not build"
   assert_contains "$out" "board: $board" "build did not report the board path: $out"
-  assert_contains "$out" "served: $board" "build did not establish the Lavish session: $out"
+  assert_contains "$out" "served: $board" "build did not establish the E.D.I.T.H. session: $out"
   assert_contains "$out" "bound: " "build did not report the answer binding: $out"
   assert_contains "$out" "armed: " "the first build did not arm the board source: $out"
   assert_present "$board" "build reported success without a board"
@@ -255,7 +255,7 @@ EOF
 
   mkdir -p "$runtime"
   cp -R "$ROOT/bin" "$runtime/bin"
-  cat > "$runtime/bin/dj-procevent-lavish.sh" <<'SH'
+  cat > "$runtime/bin/dj-procevent-edith.sh" <<'SH'
 #!/usr/bin/env bash
 set -eu
 if [ "${1:-}" = arm ]; then
@@ -267,7 +267,7 @@ if [ "${1:-}" = arm ]; then
 fi
 exec "$REAL_LAVISH_ADAPTER" "$@"
 SH
-  chmod +x "$runtime/bin/dj-procevent-lavish.sh"
+  chmod +x "$runtime/bin/dj-procevent-edith.sh"
   cat > "$home/fakebin/lavish-axi" <<'SH'
 #!/usr/bin/env bash
 if [ "${1:-}" != poll ]; then
@@ -287,7 +287,7 @@ SH
     DJ_STATE_OVERRIDE="$home/state" DJ_DATA_OVERRIDE="$home/data" \
     DJ_PROCEVENT_CLAIM_ROOT="$home/procevent-claims" \
     DJ_BEARINGS_BOARD_TEMPLATE="$ROOT/.agents/skills/bearings/assets/board-template.html" \
-    REAL_LAVISH_ADAPTER="$ROOT/bin/dj-procevent-lavish.sh" \
+    REAL_LAVISH_ADAPTER="$ROOT/bin/dj-procevent-edith.sh" \
     REAL_PROCEVENT="$ROOT/bin/dj-procevent.sh" ORDER_PROOF_HOLD="$hold" \
     "$runtime/bin/dj-bearings-board.sh" build "$data" >/dev/null \
     || fail "the order-proof board build failed"
@@ -319,13 +319,13 @@ SH
   run_board "$home" build "$data" >/dev/null 2>&1
   rc=$?
   set -e
-  [ "$rc" -ne 0 ] || fail "build continued after Lavish session establishment failed"
+  [ "$rc" -ne 0 ] || fail "build continued after E.D.I.T.H. session establishment failed"
   sid=$(run_lavish_source_id "$home" "$home/.lavish/bearings-board.html")
   ! run_decisions "$home" binding "$sid" >/dev/null 2>&1 \
-    || fail "build bound the board before its Lavish session existed"
+    || fail "build bound the board before its E.D.I.T.H. session existed"
   ! run_procevent "$home" list | awk 'NR > 1 { print $1 }' | grep -Fxq "$sid" \
-    || fail "build armed the board before its Lavish session existed"
-  pass "build establishes the Lavish session before binding and arming"
+    || fail "build armed the board before its E.D.I.T.H. session existed"
+  pass "build establishes the E.D.I.T.H. session before binding and arming"
 }
 
 run_lavish_source_id() {  # <home> <artifact>
@@ -333,7 +333,7 @@ run_lavish_source_id() {  # <home> <artifact>
   PATH="$home/fakebin:$PATH" DJ_HOME="$home" \
     DJ_STATE_OVERRIDE="$home/state" DJ_DATA_OVERRIDE="$home/data" \
     DJ_PROCEVENT_CLAIM_ROOT="$home/procevent-claims" \
-    "$ROOT/bin/dj-procevent-lavish.sh" source-id "$2"
+    "$ROOT/bin/dj-procevent-edith.sh" source-id "$2"
 }
 
 test_rebuild_is_idempotent_and_does_not_double_arm() {

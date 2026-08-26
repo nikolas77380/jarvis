@@ -17,7 +17,7 @@ The shared no-mistakes gate refusal for fleet lifecycle entrypoints is summarize
 | `dj-fleet-snapshot.sh`   | Print the read-only structured fleet snapshot JSON (schema `dj-fleet-snapshot.v1`)   |
 | `dj-fleet-view.sh`       | Render the fleet snapshot as a human Markdown view                                   |
 | `dj-bearings-snapshot.sh` | Project the fleet snapshot to the compact TOON bearings view; local-only unless `--include-prs` |
-| `dj-bearings-board.sh`   | Build and arm the stable interactive `/bearings lavish` fleet board                  |
+| `dj-bearings-board.sh`   | Build and arm the stable interactive `/bearings edith` fleet board                  |
 | `dj-update.sh`           | Fast-forward-only self-update of jarvis and local or remote secondmate homes       |
 | `dj-on.sh`               | Execute one tracked Jarvis command in a configured remote secondmate home, using its job worker except for the doctor bootstrap |
 | `dj-remote-job-lib.sh`   | Shared bounded remote job queue, worker readiness, LaunchAgent contract, and filesystem-composed PATH |

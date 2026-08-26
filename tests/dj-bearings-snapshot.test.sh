@@ -1183,7 +1183,7 @@ test_projection_and_toon_fail_closed() {
   pass "projection and TOON rendering failures exit nonzero with diagnostics"
 }
 
-# The Lavish-103 defect, end to end: a COMPLETED scout that raised a decision and
+# The E.D.I.T.H.-103 defect, end to end: a COMPLETED scout that raised a decision and
 # then finished (done), whose report body reads like that decision, must surface as
 # a report POINTER only - never in decisions_open. Report prose must never open or
 # reopen a pending decision; only the keyed durable state does.
@@ -1191,21 +1191,21 @@ test_completed_scout_report_not_pending() {
   local home fakebin json
   home=$(make_home completed-scout); write_fixture "$home"
   fakebin=$(make_fakebin "$home")
-  mkdir -p "$home/projects/lav-wt" "$home/data/lavish-103"
-  dj_write_meta "$home/state/lavish-103.meta" \
-    "window=jarvis:dj-lavish-103" \
+  mkdir -p "$home/projects/lav-wt" "$home/data/edith-103"
+  dj_write_meta "$home/state/edith-103.meta" \
+    "window=jarvis:dj-edith-103" \
     "worktree=$home/projects/lav-wt" \
     "project=jarvis" \
     "harness=codex" \
     "kind=scout" \
     "mode=scout"
-  printf 'needs-decision: adopt approach A or B for Lavish issue 103\n' > "$home/state/lavish-103.status"
-  printf 'done: report ready at data/lavish-103/report.md\n' >> "$home/state/lavish-103.status"
-  printf '# Lavish 103\nThe open question is whether to adopt approach A or B; this needs a captain decision.\n' > "$home/data/lavish-103/report.md"
+  printf 'needs-decision: adopt approach A or B for E.D.I.T.H. issue 103\n' > "$home/state/edith-103.status"
+  printf 'done: report ready at data/edith-103/report.md\n' >> "$home/state/edith-103.status"
+  printf '# E.D.I.T.H. 103\nThe open question is whether to adopt approach A or B; this needs a captain decision.\n' > "$home/data/edith-103/report.md"
   json=$(run "$home" "$fakebin" --json)
   printf '%s' "$json" | jq -e '
-    (.decisions_open | any(.[]; .id == "lavish-103") | not)
-      and (.reports | any(.[]; .id == "lavish-103"))
+    (.decisions_open | any(.[]; .id == "edith-103") | not)
+      and (.reports | any(.[]; .id == "edith-103"))
   ' >/dev/null || fail "completed scout must be a report pointer, never a pending decision: $json"
   pass "a completed scout with decision-like report prose is a pointer, not pending"
 }

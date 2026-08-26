@@ -3,8 +3,8 @@ name: bearings
 description: >-
   Generate a "pick up where I left off" fleet digest from jarvis's live fleet state.
   Use when the captain invokes /bearings or asks for a bearings report, morning brief, status report, catch-up, "where did I leave off", or "what's in the works".
-  Plain /bearings is chat-only by default, /bearings file explicitly writes the dated data/status-report-<YYYY-MM-DD>.md artifact, and /bearings lavish additionally builds and arms the interactive fleet board; live PR enrichment remains opt-in and composes with the other modes.
-  Also load this skill's board-wake handling when a procevent lavish wake's source id matches the canonical source id of the stable bearings board path.
+  Plain /bearings is chat-only by default, /bearings file explicitly writes the dated data/status-report-<YYYY-MM-DD>.md artifact, and /bearings edith additionally builds and arms the interactive fleet board; live PR enrichment remains opt-in and composes with the other modes.
+  Also load this skill's board-wake handling when a procevent edith wake's source id matches the canonical source id of the stable bearings board path.
 user-invocable: true
 metadata:
   internal: true
@@ -15,8 +15,8 @@ metadata:
 Generate a complete current snapshot from the fleet's current state, so the captain can resume in one read after a break, a night, or a context reset.
 Plain `/bearings` returns only the concise four-section chat digest.
 Only `/bearings file` writes the dated markdown report artifact and then returns the concise four-section chat digest linked to that report.
-Only `/bearings lavish` builds the interactive fleet board beside that digest, through `bin/dj-bearings-board.sh` (its header owns every board mechanic and the dj-bearings-board.v1 payload contract).
-A digest/build invocation is operationally read-only apart from those explicit per-mode artifacts: the dated report in file mode, and in lavish mode the board file plus the answer binding and source registration that `bin/dj-bearings-board.sh build` records through their own owners.
+Only `/bearings edith` builds the interactive fleet board beside that digest, through `bin/dj-bearings-board.sh` (its header owns every board mechanic and the dj-bearings-board.v1 payload contract).
+A digest/build invocation is operationally read-only apart from those explicit per-mode artifacts: the dated report in file mode, and in edith mode the board file plus the answer binding and source registration that `bin/dj-bearings-board.sh build` records through their own owners.
 During that invocation it never tears down a task, merges a PR, dispatches new work, steers a worker, answers a decision, cleans up work, or mutates backlog or task state.
 Board answers are acted on later under the normal authority rules; this skill's board-wake section explicitly owns the guarded routing at that time.
 
@@ -24,12 +24,12 @@ Board answers are acted on later under the normal authority rules; this skill's 
 
 - Plain `/bearings` gathers a fresh bounded snapshot and renders the four-section chat digest without creating, deleting, reading, or replacing `data/status-report-<YYYY-MM-DD>.md`.
 - `/bearings file` gathers a fresh bounded snapshot, replaces today's `data/status-report-<YYYY-MM-DD>.md` from scratch, and renders the four-section chat digest with a link or path to that report.
-- `/bearings lavish` gathers a fresh bounded snapshot, rebuilds and arms the interactive fleet board (the "Lavish board mode" section below), and renders the four-section chat digest with the board's URL inside it.
-- Treat `file` and `lavish` only as explicit invocation options in the slash command.
-- Do not treat natural-language requests such as "write a report", "save this", "persist it", "make a file", or "make a board" as file or lavish mode unless the invocation explicitly includes the standalone option.
+- `/bearings edith` gathers a fresh bounded snapshot, rebuilds and arms the interactive fleet board (the "E.D.I.T.H. board mode" section below), and renders the four-section chat digest with the board's URL inside it.
+- Treat `file` and `edith` only as explicit invocation options in the slash command.
+- Do not treat natural-language requests such as "write a report", "save this", "persist it", "make a file", or "make a board" as file or edith mode unless the invocation explicitly includes the standalone option.
 - When the captain asks to include PRs, pass the snapshot command's live-PR opt-in.
 - `/bearings include PRs` remains chat-only and makes the live-PR opt-in.
-- `/bearings file include PRs` and `/bearings lavish include PRs` compose the same way.
+- `/bearings file include PRs` and `/bearings edith include PRs` compose the same way.
 
 ## What it does
 
@@ -67,12 +67,12 @@ Board answers are acted on later under the normal authority rules; this skill's 
    - **Underway** - each live direct report making progress, with its current state, and the plans or main pickup pointers worth reopening (`data/<id>/report.md` files, `.lavish/*.html` boards).
    - **Charted Next** - queued or gated work, including any main-inventory integrity warning, with each item's blocker, date, or integrity reason.
    After writing the file, return the concise four-section chat digest and include the report path or link without adding a fifth section.
-   For a richer review surface, offer `/bearings lavish` when the report has enough structure to deserve one, but only after the required digest is ready.
+   For a richer review surface, offer `/bearings edith` when the report has enough structure to deserve one, but only after the required digest is ready.
 
-## Lavish board mode
+## E.D.I.T.H. board mode
 
-`/bearings lavish` adds one deliverable beside the unchanged chat digest: the interactive fleet board, a myjarvis-styled Lavish page where the captain answers Captain's Call items directly instead of replying in chat.
-`bin/dj-bearings-board.sh` owns every board mechanic - the stable board path, dj-bearings-board.v1 payload validation, template injection, Lavish session establishment, the any-origin answer binding, and arm-if-absent registration - so the per-invocation work is composing the payload and running its `build`.
+`/bearings edith` adds one deliverable beside the unchanged chat digest: the interactive fleet board, a myjarvis-styled E.D.I.T.H. page where the captain answers Captain's Call items directly instead of replying in chat.
+`bin/dj-bearings-board.sh` owns every board mechanic - the stable board path, dj-bearings-board.v1 payload validation, template injection, E.D.I.T.H. session establishment, the any-origin answer binding, and arm-if-absent registration - so the per-invocation work is composing the payload and running its `build`.
 
 Compose the payload from the same snapshot with the same ranking judgment as the chat digest, plus these board rules:
 
@@ -84,13 +84,13 @@ Compose the payload from the same snapshot with the same ranking judgment as the
 - Every Captain's Call item and every Underway, Recently Landed, and Charted Next row carries an explicit `repo` field. Fill it from the snapshot and task records wherever known; use null or an empty string only as the deliberate genuinely-no-repo marker, in which case the template may show the internal id. Ids otherwise stay in the payload only as the routing channel, and composed reasons name blockers in plain words.
 
 Run `build` once after composing the payload.
-Its serve-first sequence publishes the board, establishes or resumes its Lavish session with `lavish-axi`, and only then binds and arms the polling source; use the session URL it prints in the chat digest.
+Its serve-first sequence publishes the board, establishes or resumes its E.D.I.T.H. session with `lavish-axi`, and only then binds and arms the polling source; use the session URL it prints in the chat digest.
 Never bind or arm the board before that session exists.
 Never run `lavish-axi poll` for the board yourself: the armed source's supervised runner owns the blocking poll, and the watcher's ordinary reconcile restarts it, so no conversational turn ever blocks on the board.
 
 ### Handling a board wake
 
-A board answer arrives as an ordinary `procevent lavish <source-id> <sequence>` check wake. Identify it by comparing the wake source id with `bin/dj-procevent-lavish.sh source-id "$(bin/dj-bearings-board.sh path)"`, regardless of which answer kinds the result contains; then load `process-event-sources` and follow its contract for the result read, adapter classification, and the handled acknowledgement.
+A board answer arrives as an ordinary `procevent edith <source-id> <sequence>` check wake. Identify it by comparing the wake source id with `bin/dj-procevent-edith.sh source-id "$(bin/dj-bearings-board.sh path)"`, regardless of which answer kinds the result contains; then load `process-event-sources` and follow its contract for the result read, adapter classification, and the handled acknowledgement.
 Decision answers need no routing from you: the runner feeds the board's binding into `bin/dj-captain-hold.sh`'s one keyed-answer intake, which closes or releases each answered captain-held task at answer time; reconcile any `skipped:` key yourself with a direct `answer`, and when the captain's answer is "later", record it as a deferral with `tasks-axi hold <id> ... --until <date>` instead of a closure.
 Route the non-decision keys yourself:
 
@@ -131,9 +131,9 @@ Rules that keep the contract unambiguous:
 - Include the required direct address to the captain inside one item or empty-state sentence.
 - Every PR appears as the full `https://...` URL; a shorthand `#number` is fine only as a back-reference after the full URL has already appeared in the same digest.
 - The chat follows `AGENTS.md` section 9 and carries one scannable line per item.
-- Detailed decisions, plans, full gate reasons, and evidence stay out of chat; file mode puts them in the report, while lavish mode puts only its payload-backed interactive detail on the board.
+- Detailed decisions, plans, full gate reasons, and evidence stay out of chat; file mode puts them in the report, while edith mode puts only its payload-backed interactive detail on the board.
 - In file mode, include the report path or link inside the four-section digest without adding another heading.
-- In lavish mode, include the board URL inside the four-section digest the same way.
+- In edith mode, include the board URL inside the four-section digest the same way.
 
 ## Tone and content rules
 

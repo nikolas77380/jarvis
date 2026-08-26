@@ -22,13 +22,16 @@
 #   omitting both still fails loudly so an accidental omission is never silent.
 #   Set DJ_SECONDMATE_CHARTER='<charter>' to fill the charter text.
 #   Set DJ_SECONDMATE_SCOPE='<scope>' to write a routing scope distinct from the charter text.
-#   --role <be|fe|qa|reviewer|researcher> types the crewmate (Jarvis extension).
+#   --role <be|fe|rn|qa|reviewer-be|reviewer-fe|researcher> types the crewmate (Jarvis extension).
 #   The scaffold appends the role's standing rules from roles/<role>.md plus a
-#   fixed machine-readable "Role contract: role=<role> codename=<name>" line
-#   (be=DUM-E, fe=U, qa=BUTTERFINGERS, reviewer=FRIDAY, researcher=EDITH).
+#   fixed machine-readable "Role contract: role=<role> codename=<name>" line.
+#   Registry (bin/dj-role-lib.sh is the single owner): be=MK38-IGOR,
+#   fe=MK39-STARBOOST, rn=MK37-HAMMERHEAD, qa=MK41-BONES,
+#   reviewer-be=MK40-SHOTGUN, reviewer-fe=MK25-STRIKER, researcher=FRIDAY.
 #   bin/dj-spawn.sh reads that line and refuses a spawn whose --role disagrees.
-#   reviewer and researcher are knowledge-only: they require --scout and refuse
-#   a ship scaffold. A role is optional; an untyped brief stays legal.
+#   reviewer-be, reviewer-fe, and researcher are knowledge-only: they require
+#   --scout and refuse a ship scaffold. A role is optional; an untyped brief
+#   stays legal.
 #   --herdr-lab is mandatory when the task will issue Herdr lifecycle commands.
 #   It adds the hard isolation contract backed by bin/dj-herdr-lab.sh.
 #   The flag must be explicit because {TASK} is filled after scaffolding and the
@@ -199,7 +202,7 @@ dj_brief_append_role() {
   {
     printf '\n# Role\n'
     printf 'Role contract: role=%s codename=%s\n' "$ROLE" "$codename"
-    printf 'You operate as %s (role: %s). These standing rules layer on top of everything above; where they conflict, the stricter rule wins.\n\n' "$codename" "$ROLE"
+    printf 'You operate as %s, codename %s (role: %s). These standing rules layer on top of everything above; where they conflict, the stricter rule wins.\n\n' "$(dj_role_fullname "$ROLE")" "$codename" "$ROLE"
     cat "$ROLE_FRAGMENT"
   } >> "$BRIEF"
 }
@@ -406,7 +409,7 @@ $INBOX_SECTION
 # Definition of done
 Write your findings to \`$DATA/$ID/report.md\`.
 The report must stand alone: what you did, what you found, the evidence (commands run, output, file:line references), and what you recommend.
-If your deliverable is a visual artifact the captain will review and iterate on, you may host the Lavish review loop yourself (poll, revise, re-serve, staying alive) instead of handing it back to jarvis.
+If your deliverable is a visual artifact the captain will review and iterate on, you may host the E.D.I.T.H. review loop yourself (poll, revise, re-serve, staying alive) instead of handing it back to jarvis.
 Before reporting done, read and follow \`$DJ_ROOT/.agents/skills/captain-hold-lifecycle/SKILL.md\` and pass its shared completion gate for the report and any visual review.
 When the report is complete, append \`done: {one-line conclusion}\` to the status file and stop.
 If your findings reveal work that should ship (e.g. you reproduced a bug and the fix is clear), say so in the report; jarvis may promote this task in place, and you would then receive mode-specific ship instructions as a follow-up message.

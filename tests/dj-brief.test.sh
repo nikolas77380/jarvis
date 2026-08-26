@@ -734,8 +734,8 @@ test_scout_and_secondmate_scaffold() {
   assert_present "$brief" "scout brief was not scaffolded"
   assert_grep "SCOUT task" "$brief" "scout brief must declare itself a scout task"
   assert_grep "report.md" "$brief" "scout brief must point at the report deliverable"
-  assert_grep "you may host the Lavish review loop yourself" "$brief" \
-    "scout brief must mention the option to host a Lavish review loop"
+  assert_grep "you may host the E.D.I.T.H. review loop yourself" "$brief" \
+    "scout brief must mention the option to host a E.D.I.T.H. review loop"
 
   DJ_SECONDMATE_CHARTER='Supervise the alpha domain.' \
     DJ_HOME="$BRIEF_HOME" "$ROOT/bin/dj-brief.sh" brief-sm-q6 --secondmate alpha >/dev/null 2>&1 \

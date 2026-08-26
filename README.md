@@ -27,13 +27,17 @@
 > **Jarvis** is a themed fork of [firstmate](https://github.com/kunchenguid/firstmate) by Kun Chen (MIT; the original license and copyright are retained in `LICENSE`).
 > Same harness, renamed surface: `dj-*` scripts, `DJ_*` environment, `dj/<id>` worker branches, Jarvis identity - plus one extension the upstream deliberately does not have: **typed crewmate roles**.
 >
-> | Role | Codename | Shape | Contract |
-> |---|---|---|---|
-> | `be` | DUM-E | ship or scout | `roles/be.md` |
-> | `fe` | U | ship or scout | `roles/fe.md` |
-> | `qa` | BUTTERFINGERS | ship or scout | `roles/qa.md` |
-> | `reviewer` | FRIDAY | scout only | `roles/reviewer.md` |
-> | `researcher` | EDITH | scout only | `roles/researcher.md` |
+> | Role | Armor | Codename | Shape | Contract |
+> |---|---|---|---|---|
+> | `be` | Mark 38 "Igor" | MK38-IGOR | ship or scout | `roles/be.md` |
+> | `fe` | Mark 39 "Starboost" (Gemini) | MK39-STARBOOST | ship or scout | `roles/fe.md` |
+> | `rn` | Mark 37 "Hammerhead" | MK37-HAMMERHEAD | ship or scout | `roles/rn.md` |
+> | `qa` | Mark 41 "Bones" | MK41-BONES | ship or scout | `roles/qa.md` |
+> | `reviewer-be` | Mark 40 "Shotgun" | MK40-SHOTGUN | scout only | `roles/reviewer-be.md` |
+> | `reviewer-fe` | Mark 25 "Striker" | MK25-STRIKER | scout only | `roles/reviewer-fe.md` |
+> | `researcher` | F.R.I.D.A.Y. | FRIDAY | scout only | `roles/researcher.md` |
+>
+> **E.D.I.T.H.** is not a role - it is the visual review surface (`bin/edith`, powered by the external `lavish-axi` tool) that Jarvis and crewmates raise for the captain.
 >
 > `bin/dj-brief.sh --role <r>` appends the role contract to the brief and records a machine-readable `Role contract:` line; `bin/dj-spawn.sh` refuses a spawn whose `--role` disagrees with the brief, mirroring the delivery-mode anti-drift check. An untyped task remains legal.
 

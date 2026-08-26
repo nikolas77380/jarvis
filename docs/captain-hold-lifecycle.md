@@ -41,7 +41,7 @@ A key that names no task, names a task that is not captain-held, or names a task
 Two channels feed that one intake today, and both are ordinary callers rather than special cases.
 `bin/dj-send.sh --resolve-key` is the chat channel: its status-log close is unchanged for a key the status log still owns, and a key the status log no longer owns is resolved to a still-open captain-held task - the key as a task id, then the legacy derived identity - and fed as one keyed line.
 `bin/dj-procevent.sh` is the captured-result channel: after capture, a bound source has its result passed to `bin/dj-procevent-<adapter>.sh answers <result-file>` and whatever that prints is piped into the intake, so any adapter with an `answers` command works and the runner names no adapter, parses no result, and carries no decision rule.
-`bin/dj-procevent-lavish.sh answers` is one such adapter command; it reads only rows tagged `choice`, relays a card's declared close mode, and can never let freeform captain prose forge a task id or a mode.
+`bin/dj-procevent-edith.sh answers` is one such adapter command; it reads only rows tagged `choice`, relays a card's declared close mode, and can never let freeform captain prose forge a task id or a mode.
 
 ## Structured read surfaces
 

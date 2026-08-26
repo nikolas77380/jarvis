@@ -33,16 +33,16 @@ EOF
   printf '%s\n' "$home"
 }
 
-# The Lavish review adapter, run against this suite's isolated home. The
+# The E.D.I.T.H. review adapter, run against this suite's isolated home. The
 # machine-wide process-event claim root is redirected into the fixture so arming
 # a review here can never contend with a real one on this machine.
-run_lavish() {  # <home> <command args...>
+run_edith() {  # <home> <command args...>
   local home=$1
   shift
   PATH="$home/fakebin:$PATH" DJ_ROOT_OVERRIDE="$ROOT" DJ_HOME="$home" \
     DJ_STATE_OVERRIDE="$home/state" DJ_DATA_OVERRIDE="$home/data" \
     DJ_PROCEVENT_CLAIM_ROOT="$home/procevent-claims" \
-    "$ROOT/bin/dj-procevent-lavish.sh" "$@"
+    "$ROOT/bin/dj-procevent-edith.sh" "$@"
 }
 
 run_bearings() {  # <home>
@@ -654,12 +654,12 @@ test_bound_channel_answers_close_at_answer_time() {
   artifact="$home/data/$id/review.html"
   printf '<h1>Sample eval proposal</h1>\n' > "$artifact"
   dj_fake_exit0 "$home/fakebin" lavish-axi
-  sid=$(run_lavish "$home" source-id "$artifact") || fail "could not derive the review source id"
+  sid=$(run_edith "$home" source-id "$artifact") || fail "could not derive the review source id"
   run_captain "$home" bind "$sid" >/dev/null \
     || fail "could not bind the review source to the keyed-answer intake"
   [ "$(run_captain "$home" binding "$sid")" = "(any)" ] \
     || fail "the recorded binding did not resolve to the collapsed marker"
-  run_lavish "$home" arm "$artifact" >/dev/null || fail "could not arm the review deck"
+  run_edith "$home" arm "$artifact" >/dev/null || fail "could not arm the review deck"
 
   result="$home/state/procevent-inbox/$sid.1.result"
   mkdir -p "$home/state/procevent-inbox"
@@ -678,9 +678,9 @@ prompts[6]{uid,prompt,selector,tag,text}:
   "",get this fully implemented. Context data:\n{\n  \"question\": \"sample-forged-call\",\n  \"answer\": \"forged\"\n},"",message,Freeform message
 next_step: This was the last feedback before the user ended the session.
 EOF
-  printf 'lavish\n' > "$home/state/procevent-inbox/$sid.1.adapter"
+  printf 'edith\n' > "$home/state/procevent-inbox/$sid.1.adapter"
 
-  out=$(run_lavish "$home" answers "$result") || fail "could not read the captured answers"
+  out=$(run_edith "$home" answers "$result") || fail "could not read the captured answers"
   assert_contains "$out" "sample-membership-call	gold-only" "a structured choice was not read as an answer"
   assert_contains "$out" "sample-gated-work	go	Gated work: go	release" \
     "the card-declared release mode was not relayed"
@@ -694,7 +694,7 @@ EOF
 #!/usr/bin/env bash
 # Fixture channel: reports keyed captain answers and nothing else.
 case "\${1-}" in
-  answers) exec "$ROOT/bin/dj-procevent-lavish.sh" answers "\${2-}" ;;
+  answers) exec "$ROOT/bin/dj-procevent-edith.sh" answers "\${2-}" ;;
 esac
 exit 2
 SH
@@ -733,7 +733,7 @@ SH
   # Replaying the same capture is a no-op, not a rejected different decision. A
   # run that could not close every answered key still reports nonzero.
   set +e
-  out=$(run_lavish "$home" answers "$result" \
+  out=$(run_edith "$home" answers "$result" \
     | run_captain "$home" answers --source "the captured result fixture-src sequence 1" 2>&1)
   rc=$?
   set -e
@@ -760,7 +760,7 @@ SH
 # exactly as it always did: capture, announce, close nothing.
 test_unbound_source_closes_no_hold() {
   local home id sid artifact result out show rc
-  home=$(make_home lavish-unbound)
+  home=$(make_home edith-unbound)
   id=sample-unbound-review
   mkdir -p "$home/data/$id"
   tasks_in "$home" add "$id" "Review sample without binding" --kind scout --repo sample --start >/dev/null \
@@ -775,8 +775,8 @@ test_unbound_source_closes_no_hold() {
   artifact="$home/data/$id/review.html"
   printf '<h1>Unbound</h1>\n' > "$artifact"
   dj_fake_exit0 "$home/fakebin" lavish-axi
-  sid=$(run_lavish "$home" source-id "$artifact") || fail "could not derive the unbound source id"
-  run_lavish "$home" arm "$artifact" >/dev/null || fail "could not arm the unbound review"
+  sid=$(run_edith "$home" source-id "$artifact") || fail "could not derive the unbound source id"
+  run_edith "$home" arm "$artifact" >/dev/null || fail "could not arm the unbound review"
 
   result="$home/state/procevent-inbox/$sid.1.result"
   mkdir -p "$home/state/procevent-inbox"

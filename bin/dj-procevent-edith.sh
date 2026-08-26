@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Lavish adapter for the generic process-to-event runner.
+# E.D.I.T.H. adapter for the generic process-to-event runner.
 #
 # Usage:
-#   dj-procevent-lavish.sh arm <artifact.html>
-#   dj-procevent-lavish.sh classify <result-file>
-#   dj-procevent-lavish.sh terminal <result-file>
-#   dj-procevent-lavish.sh silent <result-file>
-#   dj-procevent-lavish.sh answers <result-file>
-#   dj-procevent-lavish.sh source-id <artifact.html>
-#   dj-procevent-lavish.sh retire <artifact.html>
-#   dj-procevent-lavish.sh poll <artifact.html>
+#   dj-procevent-edith.sh arm <artifact.html>
+#   dj-procevent-edith.sh classify <result-file>
+#   dj-procevent-edith.sh terminal <result-file>
+#   dj-procevent-edith.sh silent <result-file>
+#   dj-procevent-edith.sh answers <result-file>
+#   dj-procevent-edith.sh source-id <artifact.html>
+#   dj-procevent-edith.sh retire <artifact.html>
+#   dj-procevent-edith.sh poll <artifact.html>
 #
 # classify   Print the lifecycle state a handler should act on: feedback, ended,
 #            waiting, missing, or unknown.
@@ -17,17 +17,17 @@
 #            run in a conversational turn. It runs the published blocking poll
 #            and prints its response verbatim, absorbing only the one exact
 #            transient interruption described below.
-# terminal   Exit 0 when the captured result means this Lavish source will never
+# terminal   Exit 0 when the captured result means this E.D.I.T.H. source will never
 #            produce another result, so the runner may retire it; any other exit
 #            keeps it armed. This is the generic adapter contract bin/dj-procevent.sh
-#            calls, and the only place Lavish's notion of "ended" is decided.
+#            calls, and the only place E.D.I.T.H.'s notion of "ended" is decided.
 # silent     Exit 0 when the captured result is a routine no-op the runner should
 #            record and never announce; any other exit publishes the wake. This
 #            is the generic no-op contract bin/dj-procevent.sh calls, and the
-#            only place Lavish's notion of "nothing was said" is decided.
+#            only place E.D.I.T.H.'s notion of "nothing was said" is decided.
 #
 # AN EMPTY BOARD CLOSE IS NOT NEWS, and that is what `silent` exists to say.
-# Closing a review surface that carried nothing is the single most common Lavish
+# Closing a review surface that carried nothing is the single most common E.D.I.T.H.
 # result: the captain reads a board, says nothing, and closes it. Announcing that
 # put a wake in front of the handler whose entire content was that nothing
 # happened. `silent` therefore holds one narrow, positively-determined shape -
@@ -44,7 +44,7 @@
 # positively proves nothing was said. Silence is only ever an absence this
 # adapter can see in the result, never an absence it assumes.
 #
-# This adapter is deliberately thin. It owns only what is specific to Lavish:
+# This adapter is deliberately thin. It owns only what is specific to E.D.I.T.H.:
 # canonical source identity, the argv for the currently published poll command,
 # and how to read a completed result. Ownership, durable capture, publication,
 # and restart recovery all belong to bin/dj-procevent.sh.
@@ -53,8 +53,8 @@
 # bin/dj-procevent.sh. It reports what the captain actually chose, as
 # `<task-id>\t<answer>\t<label>` lines, and stops there. It maps nothing to a
 # task, records no decision, and closes nothing: a captain answer is not special
-# to Lavish, so every rule about what a keyed answer DOES belongs to the one
-# intake in bin/dj-captain-hold.sh, which the runner feeds. A Lavish review is
+# to E.D.I.T.H., so every rule about what a keyed answer DOES belongs to the one
+# intake in bin/dj-captain-hold.sh, which the runner feeds. A E.D.I.T.H. review is
 # just an ephemeral discussion format that happens to carry answers.
 #
 # Only rows tagged `choice` are read. A freeform captain message is prose that may
@@ -71,7 +71,7 @@
 # short by the server with exactly this two-line response while the session's
 # marks remain available:
 #
-#   error: Lavish Editor poll response was interrupted
+#   error: E.D.I.T.H. Editor poll response was interrupted
 #   code: SERVER_ERROR
 #
 # That is an internal retry, not news, so registering the raw poll made the
@@ -81,7 +81,7 @@
 # deliberately narrow: real feedback, ended and missing sessions, any other
 # SERVER_ERROR, and the same interruption still standing after the bound is
 # spent are all printed straight through and captured normally. The retry is a
-# Lavish fact, so the generic runner in bin/dj-procevent.sh stays
+# E.D.I.T.H. fact, so the generic runner in bin/dj-procevent.sh stays
 # adapter-agnostic and learns nothing about it.
 #
 # LOSS LIMITATION, stated plainly. The published poll destructively clears
@@ -106,7 +106,7 @@ DJ_HOME="${DJ_HOME:-${DJ_ROOT_OVERRIDE:-$DJ_ROOT}}"
 die() { printf 'error: %s\n' "$1" >&2; exit 1; }
 usage() { sed -n '2,92p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 2; }
 
-# Canonical identity is physical, not the path string: Lavish itself keys a
+# Canonical identity is physical, not the path string: E.D.I.T.H. itself keys a
 # session on the realpath of the artifact, so two names for one file are one
 # source and must never become two owners.
 cmd_source_id() {
@@ -117,9 +117,9 @@ cmd_source_id() {
     || die "cannot resolve the artifact path: $artifact"
   [ -f "$real" ] || die "artifact does not exist: $artifact"
   if command -v shasum >/dev/null 2>&1; then
-    printf 'lavish-%s\n' "$(printf '%s' "$real" | shasum -a 256 | awk '{print substr($1,1,16)}')"
+    printf 'edith-%s\n' "$(printf '%s' "$real" | shasum -a 256 | awk '{print substr($1,1,16)}')"
   else
-    printf 'lavish-%s\n' "$(printf '%s' "$real" | sha256sum | awk '{print substr($1,1,16)}')"
+    printf 'edith-%s\n' "$(printf '%s' "$real" | sha256sum | awk '{print substr($1,1,16)}')"
   fi
 }
 
@@ -136,8 +136,8 @@ cmd_arm() {
   # no --timeout-ms so completion is a server event, and absorbs only the exact
   # transient interruption. Registering raw poll output is what let that
   # interruption reach the runner as a captured result.
-  "$SCRIPT_DIR/dj-procevent.sh" register lavish "$id" \
-    -- "$SCRIPT_DIR/dj-procevent-lavish.sh" poll "$real" || exit 1
+  "$SCRIPT_DIR/dj-procevent.sh" register edith "$id" \
+    -- "$SCRIPT_DIR/dj-procevent-edith.sh" poll "$real" || exit 1
   printf 'armed: %s\n' "$id"
   printf 'artifact: %s\n' "$real"
 }
@@ -166,7 +166,7 @@ poll_response_filter() {  # <response-file>
     use strict;
     use warnings;
     my ($stage) = @ARGV;
-    my $expected = "error: Lavish Editor poll response was interrupted\ncode: SERVER_ERROR\n";
+    my $expected = "error: E.D.I.T.H. Editor poll response was interrupted\ncode: SERVER_ERROR\n";
     open my $staged, ">", $stage or exit 2;
     binmode STDIN;
     binmode STDOUT;
@@ -232,7 +232,7 @@ cmd_poll() {
   [ "$#" -eq 1 ] || usage
   command -v lavish-axi >/dev/null 2>&1 || die "lavish-axi is not installed"
   delay=$(poll_retry_delay) || exit 1
-  response=$(mktemp "${TMPDIR:-/tmp}/dj-lavish-poll.XXXXXX") || die "cannot stage the poll response"
+  response=$(mktemp "${TMPDIR:-/tmp}/dj-edith-poll.XXXXXX") || die "cannot stage the poll response"
   printf -v cleanup_command 'rm -f -- %q' "$response"
   # shellcheck disable=SC2064 # $cleanup_command must expand now, while the staged path is still set.
   trap "$cleanup_command" EXIT
@@ -300,7 +300,7 @@ cmd_classify() {
       sub(/^code:[[:space:]]*/, ""); sub(/[[:space:]]*$/, ""); print; exit }
     in_error { exit }
   ' "$file")
-  if [ "$error_code" = NOT_FOUND ] || [[ "$error_message" == "No active Lavish Editor session"* ]]; then
+  if [ "$error_code" = NOT_FOUND ] || [[ "$error_message" == "No active E.D.I.T.H. Editor session"* ]]; then
     printf 'missing\n'
   else
     printf 'unknown\n'
@@ -308,7 +308,7 @@ cmd_classify() {
 }
 
 # Whether a captured result ends this source, for the generic runner's automatic
-# retirement. Lavish's notion of "ended" lives here and nowhere else: an ended
+# retirement. E.D.I.T.H.'s notion of "ended" lives here and nowhere else: an ended
 # session produces nothing further, a missing session has nothing left to
 # produce, and the published poll delivers the final feedback of a `Send & End`
 # review marked with session_ended and returns only empty ended sessions after
@@ -356,7 +356,7 @@ result_has_queued_content() {  # <result-file>
 }
 
 # Whether a captured result is a routine no-op the runner should record without
-# announcing, for the generic runner's silence seam. Lavish's notion of "nothing
+# announcing, for the generic runner's silence seam. E.D.I.T.H.'s notion of "nothing
 # was said" lives here and nowhere else: an ended session carrying no queued
 # content block is a board the captain closed without saying anything, and the
 # handler learns nothing from being told. Anything else - a real answer, a

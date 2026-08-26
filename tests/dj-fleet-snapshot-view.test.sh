@@ -739,31 +739,31 @@ test_open_decision_clears_on_keyed_resolution() {
 # raised a needs-decision and then finished (done) - its report delivered, its
 # decision either answered or captured in the report for the captain - must surface
 # only as a report POINTER, not a reopened pending decision, even when the report
-# body and the stale status line contain decision-like prose. This is the Lavish-103
+# body and the stale status line contain decision-like prose. This is the E.D.I.T.H.-103
 # defect: a terminal single-owner task's stale, never-keyed-resolved needs-decision
 # must not linger as pending. Decisions come purely from the keyed fold reconciled
 # against the crew lifecycle; report prose never opens or reopens a decision.
 test_completed_scout_report_is_pointer_not_pending() {
   local home fakebin out
   home=$(make_home completed-scout)
-  mkdir -p "$home/projects/scout-wt" "$home/data/lavish-103"
-  dj_write_meta "$home/state/lavish-103.meta" \
-    "window=jarvis:dj-lavish-103" \
+  mkdir -p "$home/projects/scout-wt" "$home/data/edith-103"
+  dj_write_meta "$home/state/edith-103.meta" \
+    "window=jarvis:dj-edith-103" \
     "worktree=$home/projects/scout-wt" \
     "project=jarvis" \
     "harness=claude" \
     "kind=scout" \
     "mode=scout"
-  record_claude_idle "$home/state" lavish-103
+  record_claude_idle "$home/state" edith-103
   # Stale needs-decision, then the scout finished (done). No keyed resolution.
-  printf 'needs-decision: adopt approach A or B for Lavish issue 103\n' > "$home/state/lavish-103.status"
-  printf 'done: report ready at data/lavish-103/report.md\n' >> "$home/state/lavish-103.status"
+  printf 'needs-decision: adopt approach A or B for E.D.I.T.H. issue 103\n' > "$home/state/edith-103.status"
+  printf 'done: report ready at data/edith-103/report.md\n' >> "$home/state/edith-103.status"
   # Completed report whose PROSE reads like the decision.
-  printf '# Lavish 103\nThe open question is whether to adopt approach A or B.\nThis needs a captain decision. Recommendation: A.\n' > "$home/data/lavish-103/report.md"
+  printf '# E.D.I.T.H. 103\nThe open question is whether to adopt approach A or B.\nThis needs a captain decision. Recommendation: A.\n' > "$home/data/edith-103/report.md"
   fakebin=$(make_fakebin "$home")
   out=$(PATH="$fakebin:$PATH" DJ_HOME="$home" "$SNAPSHOT" --json)
   printf '%s' "$out" | jq -e '
-    .tasks[] | select(.id == "lavish-103")
+    .tasks[] | select(.id == "edith-103")
     | .current_state.state == "done"
       and .hints.pending_decision == false
       and (.hints.open_decisions | length) == 0

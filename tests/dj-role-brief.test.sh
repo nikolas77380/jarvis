@@ -18,14 +18,16 @@ mkdir -p "$HOME_DIR/data"
 test_lib_registry() {
   # shellcheck source=bin/dj-role-lib.sh
   . "$ROOT/bin/dj-role-lib.sh"
-  for r in be fe qa reviewer researcher; do
+  for r in be fe rn qa reviewer-be reviewer-fe researcher; do
     dj_role_valid "$r" || fail "dj_role_valid rejects known role '$r'"
     [ -n "$(dj_role_codename "$r")" ] || fail "dj_role_codename empty for '$r'"
     [ -f "$ROOT/roles/$r.md" ] || fail "roles/$r.md fragment missing"
   done
   dj_role_valid devops && fail "dj_role_valid accepts unknown role 'devops'"
   expect_code 0 0 "registry sane"
-  dj_role_scout_only reviewer || fail "reviewer must be scout-only"
+  dj_role_scout_only reviewer-be || fail "reviewer-be must be scout-only"
+  dj_role_scout_only reviewer-fe || fail "reviewer-fe must be scout-only"
+  dj_role_valid reviewer && fail "legacy generic role 'reviewer' must be invalid after the split"
   dj_role_scout_only researcher || fail "researcher must be scout-only"
   dj_role_scout_only be && fail "be must not be scout-only"
   pass "role registry: names, codenames, fragments, scout-only set"
@@ -38,7 +40,7 @@ test_ship_brief_records_role() {
   DJ_HOME="$HOME_DIR" "$ROOT/bin/dj-brief.sh" "$id" some-proj --mode direct-PR --role be >/dev/null 2>&1 \
     || fail "ship brief with --role be failed to scaffold"
   out="$HOME_DIR/data/$id/brief.md"
-  grep -q '^Role contract: role=be codename=DUM-E$' "$out" \
+  grep -q '^Role contract: role=be codename=MK38-IGOR$' "$out" \
     || fail "ship brief lacks the fixed role contract line"
   grep -q 'server-side code only' "$out" \
     || fail "ship brief lacks the be role fragment body"
@@ -50,7 +52,7 @@ test_scout_brief_records_role() {
   DJ_HOME="$HOME_DIR" "$ROOT/bin/dj-brief.sh" "$id" some-proj --scout --role researcher >/dev/null 2>&1 \
     || fail "scout brief with --role researcher failed to scaffold"
   out="$HOME_DIR/data/$id/brief.md"
-  grep -q '^Role contract: role=researcher codename=EDITH$' "$out" \
+  grep -q '^Role contract: role=researcher codename=FRIDAY$' "$out" \
     || fail "scout brief lacks the researcher contract line"
   pass "scout brief: --role researcher records the contract line"
 }
@@ -66,13 +68,13 @@ test_untyped_brief_has_no_role_line() {
 
 test_knowledge_only_roles_refuse_ship() {
   local r rc
-  for r in reviewer researcher; do
+  for r in reviewer-be reviewer-fe researcher; do
     DJ_HOME="$HOME_DIR" "$ROOT/bin/dj-brief.sh" "role-ship-$r" some-proj --mode direct-PR --role "$r" >/dev/null 2>&1; rc=$?
     expect_code 1 "$rc" "ship brief with knowledge-only role '$r' must be refused"
     [ -e "$HOME_DIR/data/role-ship-$r/brief.md" ] \
       && fail "refused scaffold for '$r' still wrote a brief"
   done
-  pass "knowledge-only roles: reviewer/researcher refuse ship scaffolds"
+  pass "knowledge-only roles: reviewer-be/reviewer-fe/researcher refuse ship scaffolds"
 }
 
 test_invalid_and_misplaced_role() {
@@ -90,7 +92,7 @@ test_role_query() {
   local out rc
   out=$(DJ_HOME="$HOME_DIR" "$ROOT/bin/dj-role.sh" role-ship-be); rc=$?
   expect_code 0 "$rc" "dj-role.sh on a typed task exits 0"
-  [ "$out" = "role=be codename=DUM-E" ] || fail "dj-role.sh printed '$out'"
+  [ "$out" = "role=be codename=MK38-IGOR" ] || fail "dj-role.sh printed '$out'"
   DJ_HOME="$HOME_DIR" "$ROOT/bin/dj-role.sh" role-untyped >/dev/null 2>&1; rc=$?
   expect_code 3 "$rc" "dj-role.sh on an untyped task exits 3 silently"
   DJ_HOME="$HOME_DIR" "$ROOT/bin/dj-role.sh" role-missing >/dev/null 2>&1; rc=$?

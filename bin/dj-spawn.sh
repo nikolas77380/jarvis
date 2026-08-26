@@ -16,12 +16,12 @@
 #   loud one-line deviation notice is printed and the spawn continues.
 #   no-mistakes-prod-only is a registry policy rather than a task mode and is
 #   refused as a flag value.
-#   --role <be|fe|qa|reviewer|researcher> types the crewmate (Jarvis extension).
+#   --role <be|fe|rn|qa|reviewer-be|reviewer-fe|researcher> types the crewmate (Jarvis extension).
 #   When the brief records a "Role contract: role=<role>" line, a spawn whose
 #   --role disagrees is REFUSED, and a brief-recorded role is adopted when the
-#   flag is absent - the same anti-drift shape as the delivery mode. reviewer
-#   and researcher are knowledge-only and are refused on ship spawns. --role is
-#   refused on --secondmate and --relaunch spawns.
+#   flag is absent - the same anti-drift shape as the delivery mode.
+#   reviewer-be, reviewer-fe, and researcher are knowledge-only and are refused
+#   on ship spawns. --role is refused on --secondmate and --relaunch spawns.
 #        dj-spawn.sh <task-id> --relaunch [--harness <name>] [--model <name>] [--effort <level>]
 #   --relaunch launches a replacement agent for an EXISTING task into that
 #   task's own recorded endpoint and worktree instead of creating either. It is

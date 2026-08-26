@@ -63,7 +63,7 @@ README.md            public overview and development notes
 .claude/skills       symlink to .agents/skills for claude compatibility
 skills/              standalone public installer-facing skills, committed; not loaded by jarvis
 bin/                 helper scripts, committed; read each script's header before first use
-roles/               typed crewmate role contracts, committed: be=DUM-E, fe=U, qa=BUTTERFINGERS, reviewer=FRIDAY, researcher=EDITH; dj-brief.sh --role appends the matching contract and dj-spawn.sh refuses a brief/spawn role drift (sections 7 and 11)
+roles/               typed crewmate role contracts, committed: be=MK38-IGOR, fe=MK39-STARBOOST, rn=MK37-HAMMERHEAD, qa=MK41-BONES, reviewer-be=MK40-SHOTGUN, reviewer-fe=MK25-STRIKER, researcher=FRIDAY; dj-brief.sh --role appends the matching contract and dj-spawn.sh refuses a brief/spawn role drift (sections 7 and 11)
 .env                 optional Relay pairing token; LOCAL, gitignored; presence-gates section 14
 config/crew-harness  crewmate harness override; LOCAL, gitignored; absent or "default" = same as jarvis. Inherited as the literal file: a concrete primary adapter value also controls a secondmate home's own crewmates (section 4)
 config/crew-dispatch.json  optional crewmate dispatch profiles; LOCAL, gitignored; jarvis-maintained but human-editable natural-language rules that choose a per-task harness/model/effort profile (section 4). Inherited by secondmate homes
@@ -300,8 +300,9 @@ Record the resulting mode, `yolo` merge posture, and the one-line reason for any
 
 Treat file or subsystem overlap as a risk signal rather than an automatic reason to wait, and dispatch isolated work immediately with no concurrency cap when each change can be independently implemented and validated and the selected delivery path can reconcile ordinary rebases or conflicts.
 Serialize only for a true semantic dependency, shared mutable external state, incompatible concurrent migration, or another concrete condition that makes independent progress or reconciliation unsafe; same-file editing alone is insufficient, and genuine blockers remain durable.
-When the work is clearly typed, resolve the crewmate's role at intake alongside the delivery mode: be (backend, codename DUM-E), fe (frontend, codename U), qa (tests, codename BUTTERFINGERS), reviewer (codename FRIDAY), or researcher (codename EDITH).
-reviewer and researcher are knowledge-only roles: their deliverable is a report, so they scaffold and spawn only as scouts, never ships.
+When the work is clearly typed, resolve the crewmate's role at intake alongside the delivery mode: be (backend, Mark 38 "Igor"), fe (frontend, Mark 39 "Starboost"), rn (React Native, Mark 37 "Hammerhead"), qa (tests, Mark 41 "Bones"), reviewer-be (Mark 40 "Shotgun"), reviewer-fe (Mark 25 "Striker"), or researcher (F.R.I.D.A.Y.).
+reviewer-be, reviewer-fe, and researcher are knowledge-only roles: their deliverable is a report, so they scaffold and spawn only as scouts, never ships.
+E.D.I.T.H. is not a role: it is the visual review surface (bin/edith, powered by the external lavish-axi tool) that any crewmate or Jarvis itself raises.
 Pass --role to both the brief scaffold and the spawn; each refuses an unknown role, and the spawn refuses a brief whose recorded role disagrees with its flag, exactly like the delivery-mode contract.
 A role is an intake judgment, never a mandatory axis: an untyped task stays legal, and bin/dj-role.sh reads a task's recorded role when routing needs it.
 Write the task-specific brief under section 11 before spawning.
@@ -388,7 +389,7 @@ Retire one only on an explicit captain or main-jarvis decision, after loading `s
 A completed scout must leave a self-contained report before its scratch worktree can be discarded; read and relay its findings, record the report as the Done artifact, and re-evaluate the queue.
 A report may recommend implementation but does not authorize it.
 Before treating the investigation or any visual review as complete, load `captain-hold-lifecycle`; teardown enforces that shared completion gate.
-When a scout's deliverable is a visual artifact the captain will iterate on, prefer keeping that scout alive to host its own Lavish loop rather than tearing it down and mediating from jarvis, so the scout keeps its investigation context and the captain iterates in one continuous session.
+When a scout's deliverable is a visual artifact the captain will iterate on, prefer keeping that scout alive to host its own E.D.I.T.H. loop rather than tearing it down and mediating from jarvis, so the scout keeps its investigation context and the captain iterates in one continuous session.
 When implementation is separately authorized, promote the existing scout through `bin/dj-promote.sh` rather than creating a duplicate task.
 The promoted worker must inventory scratch state, return to a clean default-branch base, carry over only intended fix changes, create the ship branch, and follow the project's selected delivery path while leaving scratch commits and debug edits behind and turning a reproduced bug into the regression test.
 
@@ -489,7 +490,7 @@ Reach the captain immediately for:
 Do not surface automatic fixes, retries, routine progress, or internal supervision mechanics.
 When a routine operational update's specific event requires no action but a response must be sent, reply exactly `Captain, shipshape.` without characterizing the visible session's unrelated decisions.
 Batch non-urgent updates into the next natural reply.
-Use plain chat for a yes-or-no decision and `lavish-axi` only when several options or a structured report benefit from a visual surface.
+Use plain chat for a yes-or-no decision and E.D.I.T.H. (`lavish-axi`) only when several options or a structured report benefit from a visual surface.
 Whenever a PR is mentioned, include its full `https://...` URL before any shorthand reference.
 Mention cost as a courtesy when unusually much work is running, but never block on it.
 

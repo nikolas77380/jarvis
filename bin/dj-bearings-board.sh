@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# dj-bearings-board.sh - build and arm the /bearings lavish fleet board.
+# dj-bearings-board.sh - build and arm the /bearings edith fleet board.
 #
-# The board is the captain-facing interactive surface of /bearings lavish: the
+# The board is the captain-facing interactive surface of /bearings edith: the
 # shipped template (.agents/skills/bearings/assets/board-template.html) plus one
 # injected dj-bearings-board.v1 JSON payload. This script owns the mechanics so
 # the invoking agent's per-run work stays "compose the JSON, run build" - the
@@ -12,7 +12,7 @@
 #   dj-bearings-board.sh path
 #
 # build      Validate the payload and inject it into a fresh copy of the shipped
-#            template at the stable board path. Establish or resume the Lavish
+#            template at the stable board path. Establish or resume the E.D.I.T.H.
 #            session on that board BEFORE binding and arming its answer source,
 #            so a registered poll can never race a session that does not exist.
 #            Bind to the keyed-answer intake (bin/dj-captain-hold.sh) ALWAYS
@@ -37,7 +37,7 @@
 # existing board is touched.
 #
 # The board path is stable - $DJ_HOME/.lavish/bearings-board.html - so a
-# re-invocation rebuilds the same file in place, which keeps the same Lavish
+# re-invocation rebuilds the same file in place, which keeps the same E.D.I.T.H.
 # session URL and the same canonical process-event source id. Injection escapes
 # every `<` in the compact JSON as the \u003c string escape, so a payload string
 # containing "</script>" can never terminate the data block early.
@@ -174,10 +174,10 @@ command_build() {
   printf 'board: %s\n' "$board"
 
   command -v lavish-axi >/dev/null 2>&1 || fail "lavish-axi is not installed"
-  lavish-axi "$board" || fail "cannot establish the board Lavish session"
+  lavish-axi "$board" || fail "cannot establish the board E.D.I.T.H. session"
   printf 'served: %s\n' "$board"
 
-  sid=$("$SCRIPT_DIR/dj-procevent-lavish.sh" source-id "$board") \
+  sid=$("$SCRIPT_DIR/dj-procevent-edith.sh" source-id "$board") \
     || fail "cannot derive the board source id"
   "$SCRIPT_DIR/dj-captain-hold.sh" bind "$sid" >/dev/null \
     || fail "cannot bind the board source to the keyed-answer intake"
@@ -186,7 +186,7 @@ command_build() {
   if "$SCRIPT_DIR/dj-procevent.sh" list | awk 'NR > 1 { print $1 }' | grep -Fxq "$sid"; then
     printf 'already-armed: %s\n' "$sid"
   else
-    "$SCRIPT_DIR/dj-procevent-lavish.sh" arm "$board" >/dev/null \
+    "$SCRIPT_DIR/dj-procevent-edith.sh" arm "$board" >/dev/null \
       || fail "cannot arm the board as a process-event source"
     printf 'armed: %s\n' "$sid"
   fi

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# E.D.I.T.H. - the visual review surface Jarvis raises for the captain.
+# Thin alias: E.D.I.T.H. is powered by the external `lavish-axi` tool, and that
+# npm package keeps its own name (bootstrap installs and version-gates it as
+# lavish-axi). This shim only lets the fleet call the surface by its Jarvis
+# name; flags, subcommands, and behavior are lavish-axi's own.
+set -eu
+command -v lavish-axi >/dev/null 2>&1 || {
+  echo "error: lavish-axi is not on PATH; E.D.I.T.H. is powered by it (npm install -g lavish-axi && lavish-axi setup hooks)" >&2
+  exit 1
+}
+exec lavish-axi "$@"
