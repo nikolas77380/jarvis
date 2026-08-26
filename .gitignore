@@ -1,0 +1,13 @@
+projects/
+state/
+data/
+scratchpad*
+.no-mistakes/
+.lavish/
+.dj-secondmate-home
+.dj-secondmate-parent
+.DS_Store
+__pycache__/
+*.pyc
+.env
+config/

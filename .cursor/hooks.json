@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "command": "\"$CURSOR_PROJECT_DIR\"/bin/dj-sessionstart-cursor.sh --source startup",
+        "timeout": 180
+      }
+    ],
+    "stop": [
+      {
+        "type": "command",
+        "command": "\"$CURSOR_PROJECT_DIR\"/bin/dj-turnend-guard-cursor.sh",
+        "timeout": 28800,
+        "loop_limit": 200
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "Shell",
+        "type": "command",
+        "command": "\"$CURSOR_PROJECT_DIR\"/bin/dj-arm-pretool-check.sh --cursor",
+        "timeout": 10
+      },
+      {
+        "matcher": "Shell",
+        "type": "command",
+        "command": "\"$CURSOR_PROJECT_DIR\"/bin/dj-cd-pretool-check.sh --cursor",
+        "timeout": 10
+      }
+    ]
+  }
+}
