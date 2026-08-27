@@ -6,7 +6,7 @@
 # directly, in which case this shim is a harmless pass-through on PATH order.
 set -eu
 command -v edith-axi >/dev/null 2>&1 || {
-  echo "error: edith-axi is not on PATH; install the E.D.I.T.H. fork (npm install -g git+https://github.com/your-org/edith-axi.git && edith-axi setup hooks)" >&2
+  echo "error: edith-axi is not on PATH; install the E.D.I.T.H. fork (npm install -g git+https://github.com/nikolas77380/edith-axi.git && edith-axi setup hooks)" >&2
   exit 1
 }
 exec edith-axi "$@"
