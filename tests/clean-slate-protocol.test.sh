@@ -50,6 +50,7 @@ export HARNESS_STATE_DIR="$REPO/.harness-state"
 export HARNESS_CLEAN_SLATE_NO_LAUNCH=1
 
 "$REPO/scripts/clean-slate-protocol.sh" run task-strict | grep -q 'state=reviewing'
+test -f "$WORKTREE/.clean-slate/task-strict/review-1.prompt.md"
 test "$("$REPO/scripts/clean-slate-protocol.sh" status task-strict)" = 'clean-slate: task-strict · mode=strict · state=reviewing · round=1'
 "$REPO/scripts/clean-slate-protocol.sh" status task-strict --json | jq -e '.schema == "harness-clean-slate.v1" and .state == "reviewing"' >/dev/null
 
@@ -58,7 +59,16 @@ if "$REPO/scripts/clean-slate-protocol.sh" run task-strict >/dev/null 2>&1; then
   exit 1
 fi
 
+cat > "$WORKTREE/.clean-slate/task-strict/review-1.json" <<'JSON'
+{"outcome":"findings","summary":"one actionable issue","findings":[{"id":"R1","class":"actionable","message":"fix it"}]}
+JSON
+test "$("$REPO/scripts/clean-slate-protocol.sh" status task-strict)" = 'clean-slate: task-strict · mode=strict · state=awaiting-response · round=1'
 "$REPO/scripts/clean-slate-protocol.sh" respond task-strict --action fix | grep -q 'state=fixing'
+test -f "$WORKTREE/.clean-slate/task-strict/fix-1.prompt.md"
+HEAD_NOW=$(git -C "$WORKTREE" rev-parse HEAD)
+printf '{"outcome":"fixed","newHead":"%s","summary":"fixed"}\n' "$HEAD_NOW" > "$WORKTREE/.clean-slate/task-strict/fix-1.json"
+test "$("$REPO/scripts/clean-slate-protocol.sh" status task-strict)" = 'clean-slate: task-strict · mode=strict · state=reviewing · round=2'
+grep -q "$HEAD_NOW..HEAD" "$WORKTREE/.clean-slate/task-strict/review-2.prompt.md"
 "$REPO/scripts/clean-slate-protocol.sh" abort task-strict | grep -q 'state=aborted'
 "$REPO/scripts/clean-slate-protocol.sh" logs task-strict | grep -q 'run started'
 

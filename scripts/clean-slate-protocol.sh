@@ -63,6 +63,133 @@ clean_summary() {
   printf 'clean-slate: %s · mode=%s · state=%s · round=%s\n' "$task" "$mode" "$state" "$round"
 }
 
+clean_stage_prompt() {
+  local file=$1 stage=$2 round worktree run_dir prompt result config base reviewed range
+  round=$(meta_get "$file" round)
+  worktree=$(meta_get "$file" worktree)
+  run_dir=$(meta_get "$file" run_dir)
+  prompt="$run_dir/$stage-$round.prompt.md"
+  result="$run_dir/$stage-$round.json"
+  config=$(meta_get "$file" config)
+  case "$stage" in
+    review)
+      base=$(jq -r '.baseBranch' "$config")
+      reviewed=$(meta_get "$file" reviewed_head)
+      if [ -n "$reviewed" ]; then range="$reviewed..HEAD"; else range="$base...HEAD"; fi
+      cat > "$prompt" <<EOF
+# Clean Slate review — round $round
+
+Review the task branch in $worktree. Inspect the range: git diff $range. Follow project instructions.
+Classify every finding as actionable or needs-decision. Also decide whether docs or
+additional targeted checks are needed. Do not edit application files.
+
+Write exactly one valid JSON object to $result:
+
+{"outcome":"approved|findings","summary":"...","findings":[{"id":"R1","class":"actionable|needs-decision","message":"..."}]}
+EOF
+      ;;
+    fix)
+      cat > "$prompt" <<EOF
+# Clean Slate fixes — round $round
+
+Read $run_dir/review-$round.json. Fix only findings classified actionable; do not guess through
+needs-decision findings. Run the narrow checks justified by the changes and commit the fixes. Write
+exactly one valid JSON object to $result:
+
+{"outcome":"fixed|needs-decision|failed","newHead":"<git HEAD>","summary":"..."}
+EOF
+      ;;
+    *) die "unknown clean-slate stage: $stage" ;;
+  esac
+  printf '%s\n' "$prompt"
+}
+
+clean_launch_stage() {
+  local file=$1 stage=$2 prompt task round role role_file worktree workspace out tab pane name system key existing
+  prompt=$(clean_stage_prompt "$file" "$stage")
+  task=$(meta_get "$file" task)
+  round=$(meta_get "$file" round)
+  key="${stage}_agent"
+  if [ "${HARNESS_CLEAN_SLATE_NO_LAUNCH:-0}" = 1 ]; then
+    clean_set "$file" stage_agent disabled
+    clean_log "$file" "prepared stage=$stage round=$round launch=disabled"
+    return
+  fi
+  require_tools
+  case "$stage" in review) role=clean-slate-reviewer ;; fix) role=clean-slate-fixer ;; esac
+  role_file="$HARNESS_ROOT/agents/$role.md"
+  [ -f "$role_file" ] || die "clean-slate role not found: $role_file"
+  existing=$(meta_get "$file" "$key")
+  if [ -n "$existing" ] && [ "$(agent_status "$existing")" != unknown ]; then
+    herdr_call agent prompt "$existing" "$(cat "$prompt")" >/dev/null
+    clean_set "$file" stage_agent "$existing"
+    clean_log "$file" "resumed stage=$stage round=$round agent=$existing"
+    return
+  fi
+  worktree=$(meta_get "$file" worktree)
+  workspace=$(workspace_ensure)
+  out=$(herdr_call tab create --workspace "$workspace" --cwd "$worktree" --label "clean-$task-$stage" --no-focus)
+  tab=$(printf '%s' "$out" | jq -er '.result.tab.tab_id')
+  pane=$(printf '%s' "$out" | jq -er '.result.root_pane.pane_id')
+  name=$(agent_runtime_name "clean-$task-$stage")
+  system="$(meta_get "$file" run_dir)/$stage.system.md"
+  { cat "$HARNESS_ROOT/RULES.md"; printf '\n\n'; cat "$role_file"; } > "$system"
+  herdr_call agent start "$name" --kind claude --pane "$pane" -- \
+    --append-system-prompt-file "$system" --name "clean-$task-$stage" --permission-mode auto >/dev/null
+  herdr_call agent prompt "$name" "$(cat "$prompt")" >/dev/null
+  clean_set "$file" "$key" "$name"
+  clean_set "$file" "${stage}_tab" "$tab"
+  clean_set "$file" stage_agent "$name"
+  clean_log "$file" "launched stage=$stage round=$round agent=$name pane=$pane"
+}
+
+clean_reconcile() {
+  local file=$1 state round run_dir result outcome worktree new_head current_head
+  state=$(meta_get "$file" state)
+  round=$(meta_get "$file" round)
+  run_dir=$(meta_get "$file" run_dir)
+  case "$state" in
+    reviewing)
+      result="$run_dir/review-$round.json"
+      [ -f "$result" ] || return 0
+      jq -e '.outcome == "approved" or .outcome == "findings"' "$result" >/dev/null \
+        || die "invalid reviewer result: $result"
+      outcome=$(jq -r '.outcome' "$result")
+      current_head=$(git -C "$(meta_get "$file" worktree)" rev-parse HEAD)
+      clean_set "$file" reviewed_head "$current_head"
+      if [ "$outcome" = approved ]; then clean_set "$file" state verifying; else clean_set "$file" state awaiting-response; fi
+      clean_log "$file" "completed stage=review round=$round outcome=$outcome"
+      ;;
+    fixing)
+      result="$run_dir/fix-$round.json"
+      [ -f "$result" ] || return 0
+      jq -e '.outcome == "fixed" or .outcome == "needs-decision" or .outcome == "failed"' "$result" >/dev/null \
+        || die "invalid fixer result: $result"
+      outcome=$(jq -r '.outcome' "$result")
+      if [ "$outcome" != fixed ]; then
+        clean_set "$file" state awaiting-response
+        clean_log "$file" "completed stage=fix round=$round outcome=$outcome"
+        return
+      fi
+      new_head=$(jq -er '.newHead' "$result") || die "fixer result has no newHead: $result"
+      worktree=$(meta_get "$file" worktree)
+      current_head=$(git -C "$worktree" rev-parse HEAD)
+      [ "$new_head" = "$current_head" ] || die "fixer result HEAD does not match worktree HEAD"
+      clean_set "$file" head "$new_head"
+      if [ "$round" -ge 2 ]; then
+        clean_set "$file" state awaiting-response
+        clean_log "$file" "review ceiling reached after round=$round"
+      else
+        round=$((round + 1))
+        clean_set "$file" round "$round"
+        clean_set "$file" state reviewing
+        clean_log "$file" "completed stage=fix; entered state=reviewing round=$round"
+        clean_launch_stage "$file" review
+      fi
+      ;;
+  esac
+}
+
 command_run() {
   local id=$1 card task_state project worktree mode config head run_dir log state file
   file=$(clean_meta "$id")
@@ -106,12 +233,14 @@ updated_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 EOF
   clean_log "$file" "run started mode=$mode head=$head"
   clean_log "$file" "entered state=$state"
+  [ "$mode" != strict ] || clean_launch_stage "$file" review
   printf 'started: %s · mode=%s · state=%s\n' "$id" "$mode" "$state"
 }
 
 command_status() {
   local id=$1 format=${2:-} file
   file=$(clean_require_meta "$id")
+  clean_reconcile "$file"
   if [ "$format" = --json ]; then
     jq -n \
       --arg schema "$(meta_get "$file" schema)" \
@@ -141,6 +270,7 @@ command_respond() {
   clean_set "$file" state "$next"
   clean_set "$file" updated_at "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   clean_log "$file" "response action=$action state=$next"
+  [ "$action" != fix ] || clean_launch_stage "$file" fix
   printf 'updated: %s · action=%s · state=%s\n' "$id" "$action" "$next"
 }
 
