@@ -3,7 +3,7 @@
 - [x] Task/run locks
   - Acceptance: live contention refuses; stale ownership is recoverable; state writes serialize.
   - Verify: `tests/state-lock.test.sh`
-- [ ] Doctor and agent reconciliation
+- [x] Doctor and agent reconciliation
   - Acceptance: drift is structured; repair is conservative and explicit.
   - Verify: `tests/doctor-reconcile.test.sh`
 - [ ] Clean Slate reconcile and retry
@@ -12,7 +12,7 @@
 - [ ] Safe teardown
   - Acceptance: dry by default; dirty/unpublished work refuses; eligible worktree is removed safely.
   - Verify: `tests/task-teardown.test.sh`
-- [ ] Fleet snapshot and session recovery view
+- [x] Fleet snapshot and session recovery view
   - Acceptance: one stable local JSON contract drives the human view.
   - Verify: `tests/fleet-snapshot.test.sh`
 - [ ] Documentation and full regression suite

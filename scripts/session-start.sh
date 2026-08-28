@@ -13,5 +13,5 @@ else
   echo '(plan/INDEX.md not installed)'
 fi
 echo
-echo 'HERDR AGENTS'
-"$HARNESS_ROOT/scripts/agent-list.sh"
+echo 'FLEET STATE'
+"$HARNESS_ROOT/scripts/fleet-snapshot.sh"
