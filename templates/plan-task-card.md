@@ -1,6 +1,7 @@
 # T0n — short title
 
 **Status:** open · **Owner:** {{AGENT}} · **Project:** {{PROJECT}} · **Blocks:** — · **Depends on:** —
+**Validation:** strict
 PR: none yet
 **Next:** <the literal next dispatch or command — see the rules below>
 
