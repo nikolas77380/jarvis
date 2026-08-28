@@ -19,3 +19,17 @@ exact recorded agent does not exist. Transport failure remains `unknown` and is 
 All task state mutations use the portable lock in `harness-state-lib.sh`. A live lock owner is never
 displaced. On Linux and unrestricted macOS the process start identity protects against PID reuse;
 restricted hosts fall back to PID liveness and fail conservatively.
+
+## Safe teardown
+
+```bash
+scripts/task-teardown.sh <task-id>
+scripts/task-teardown.sh <task-id> --execute
+```
+
+The first form is a read-only eligibility check. Execution requires an exact registered worktree,
+a clean application diff, the recorded branch, a stopped task agent, terminal Clean Slate state,
+and a proven publication outcome (recorded PR/upstream or an explicitly local-only project).
+Artifacts and both metadata files move to `.harness-state/archive/<task-id>/` before the registered
+worktree is removed. The Git branch is never deleted. Archived task cards remain visible to fleet
+state as `runtime.observed=archived`, so successful cleanup does not create doctor drift.

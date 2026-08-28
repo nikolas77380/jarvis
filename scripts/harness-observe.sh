@@ -10,6 +10,7 @@ valid_task_id "$ID" || die "invalid task id: $ID"
 command -v jq >/dev/null || die "jq is required"
 
 META=$(task_meta "$ID")
+ARCHIVE_META="$HARNESS_STATE/archive/$ID/runtime.original.meta"
 CARD_COUNT=$(find "$HARNESS_ROOT/plan" -maxdepth 1 -type f -name "$ID*.md" ! -name TEMPLATE.md 2>/dev/null | wc -l | tr -d ' ')
 CARD_EXISTS=false
 [ "$CARD_COUNT" = 1 ] && CARD_EXISTS=true
@@ -18,7 +19,12 @@ trap 'rm -f "$ISSUES_FILE"' EXIT
 issue() { printf '%s\n' "$1" >> "$ISSUES_FILE"; }
 
 META_VALID=false
+ARCHIVED=false
 PROJECT='' AGENT='' WORKTREE='' RECORDED_BRANCH='' OBSERVED=missing ACTUAL_BRANCH='' HEAD='' CLEAN=false
+if { [ ! -f "$META" ] || [ -L "$META" ]; } && [ -f "$ARCHIVE_META" ] && [ ! -L "$ARCHIVE_META" ]; then
+  META=$ARCHIVE_META
+  ARCHIVED=true
+fi
 if [ ! -f "$META" ] || [ -L "$META" ]; then
   issue runtime-metadata-missing
 elif [ "$(meta_get "$META" schema)" != harness-herdr-task.v1 ]; then
@@ -29,7 +35,9 @@ else
   AGENT=$(meta_get "$META" agent)
   WORKTREE=$(meta_get "$META" worktree)
   RECORDED_BRANCH=$(meta_get "$META" branch)
-  if [ "$(meta_get "$META" stopped)" = 1 ]; then
+  if [ "$ARCHIVED" = true ]; then
+    OBSERVED=archived
+  elif [ "$(meta_get "$META" stopped)" = 1 ]; then
     OBSERVED=stopped
   else
     OUT=$(herdr --session "$(meta_get "$META" session)" agent get "$(meta_get "$META" agent_name)" 2>/dev/null) || OUT=
@@ -42,7 +50,9 @@ else
       OBSERVED=$(printf '%s' "$OUT" | jq -r '.result.agent.agent_status // "unknown"')
     fi
   fi
-  if [ ! -d "$WORKTREE" ]; then
+  if [ "$ARCHIVED" = true ]; then
+    CLEAN=true
+  elif [ ! -d "$WORKTREE" ]; then
     issue worktree-missing
   elif ! git -C "$WORKTREE" rev-parse --git-dir >/dev/null 2>&1; then
     issue worktree-not-git
@@ -57,6 +67,7 @@ fi
 
 CLEAN_STATE=none
 CLEAN_META="$HARNESS_STATE/clean-slate/$ID.meta"
+if [ "$ARCHIVED" = true ]; then CLEAN_META="$HARNESS_STATE/archive/$ID/clean-slate.original.meta"; fi
 if [ -f "$CLEAN_META" ]; then
   if [ "$(meta_get "$CLEAN_META" schema)" = harness-clean-slate.v1 ]; then
     CLEAN_STATE=$(meta_get "$CLEAN_META" state)
@@ -74,4 +85,4 @@ jq -n --arg schema harness-task-observation.v1 --arg task "$ID" --arg project "$
   --arg recordedBranch "$RECORDED_BRANCH" --arg branch "$ACTUAL_BRANCH" --arg head "$HEAD" \
   --arg cleanState "$CLEAN_STATE" --argjson cardExists "$CARD_EXISTS" --argjson metadataValid "$META_VALID" \
   --argjson clean "$CLEAN" --argjson issues "$ISSUES" \
-  '{schema:$schema,task:$task,project:$project,agent:$agent,card:{exists:$cardExists},runtime:{metadataValid:$metadataValid,observed:$observed},worktree:{path:$worktree,exists:($worktree != "" and $head != ""),clean:$clean,recordedBranch:$recordedBranch,branch:$branch,head:$head},cleanSlate:{state:$cleanState},issues:$issues,consistent:($issues|length==0),nextAction:(if ($issues|length)>0 then "inspect" elif $observed=="working" then "wait" else "continue" end)}'
+  '{schema:$schema,task:$task,project:$project,agent:$agent,card:{exists:$cardExists},runtime:{metadataValid:$metadataValid,observed:$observed},worktree:{path:$worktree,exists:($worktree != "" and $head != ""),clean:$clean,recordedBranch:$recordedBranch,branch:$branch,head:$head},cleanSlate:{state:$cleanState},issues:$issues,consistent:($issues|length==0),nextAction:(if ($issues|length)>0 then "inspect" elif $observed=="working" then "wait" elif $observed=="archived" then "none" else "continue" end)}'

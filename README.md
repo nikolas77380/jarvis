@@ -39,6 +39,7 @@ scripts/plan-check.sh          every card must be tracked by git and linked from
 scripts/owns-check.sh          refuses two ACTIVE cards claiming the same file or glob
 memory/                        portable pipeline lessons for an agent's memory store, with its own README
 scripts/agent-*.sh             spawn, list, inspect, steer, focus and stop Herdr agents
+scripts/task-teardown.sh       archive a completed task and safely remove only its worktree
 scripts/session-start.sh       read-only plan/runtime recovery view
 scripts/clean-slate-protocol.sh bounded review, project checks, PR and CI gate
 scripts/fleet-snapshot.sh      structured local state for every recorded or planned task

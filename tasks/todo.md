@@ -9,7 +9,7 @@
 - [x] Clean Slate reconcile and retry
   - Acceptance: partial operations resume without duplicate agent, push, or PR.
   - Verify: `tests/clean-slate-recovery.test.sh`
-- [ ] Safe teardown
+- [x] Safe teardown
   - Acceptance: dry by default; dirty/unpublished work refuses; eligible worktree is removed safely.
   - Verify: `tests/task-teardown.test.sh`
 - [x] Fleet snapshot and session recovery view
