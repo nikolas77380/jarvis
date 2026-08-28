@@ -13,6 +13,7 @@ cp "$ROOT/scripts/herdr-runtime-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-state-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/session-start.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-observe.sh" "$ROOT/scripts/fleet-snapshot.sh" "$REPO/scripts/" 2>/dev/null || true
+cp "$ROOT/scripts/harness-event-lib.sh" "$ROOT/scripts/events-poll.sh" "$ROOT/scripts/inbox.sh" "$ROOT/scripts/decisions.sh" "$REPO/scripts/" 2>/dev/null || true
 
 cat > "$FAKEBIN/herdr" <<'FAKE'
 #!/usr/bin/env bash
