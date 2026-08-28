@@ -20,7 +20,7 @@ issue() { printf '%s\n' "$1" >> "$ISSUES_FILE"; }
 
 META_VALID=false
 ARCHIVED=false
-PROJECT='' AGENT='' WORKTREE='' RECORDED_BRANCH='' OBSERVED=missing ACTUAL_BRANCH='' HEAD='' CLEAN=false
+PROJECT='' AGENT='' ENGINE='' GENERATION='' WORKTREE='' RECORDED_BRANCH='' OBSERVED=missing ACTUAL_BRANCH='' HEAD='' CLEAN=false
 if { [ ! -f "$META" ] || [ -L "$META" ]; } && [ -f "$ARCHIVE_META" ] && [ ! -L "$ARCHIVE_META" ]; then
   META=$ARCHIVE_META
   ARCHIVED=true
@@ -33,6 +33,8 @@ else
   META_VALID=true
   PROJECT=$(meta_get "$META" project)
   AGENT=$(meta_get "$META" agent)
+  ENGINE=$(meta_get "$META" engine); ENGINE=${ENGINE:-claude}
+  GENERATION=$(meta_get "$META" generation); GENERATION=${GENERATION:-1}
   WORKTREE=$(meta_get "$META" worktree)
   RECORDED_BRANCH=$(meta_get "$META" branch)
   if [ "$ARCHIVED" = true ]; then
@@ -81,8 +83,8 @@ fi
 
 ISSUES=$(jq -R . "$ISSUES_FILE" | jq -s .)
 jq -n --arg schema harness-task-observation.v1 --arg task "$ID" --arg project "$PROJECT" \
-  --arg agent "$AGENT" --arg observed "$OBSERVED" --arg worktree "$WORKTREE" \
+  --arg agent "$AGENT" --arg engine "$ENGINE" --arg generation "$GENERATION" --arg observed "$OBSERVED" --arg worktree "$WORKTREE" \
   --arg recordedBranch "$RECORDED_BRANCH" --arg branch "$ACTUAL_BRANCH" --arg head "$HEAD" \
   --arg cleanState "$CLEAN_STATE" --argjson cardExists "$CARD_EXISTS" --argjson metadataValid "$META_VALID" \
   --argjson clean "$CLEAN" --argjson issues "$ISSUES" \
-  '{schema:$schema,task:$task,project:$project,agent:$agent,card:{exists:$cardExists},runtime:{metadataValid:$metadataValid,observed:$observed},worktree:{path:$worktree,exists:($worktree != "" and $head != ""),clean:$clean,recordedBranch:$recordedBranch,branch:$branch,head:$head},cleanSlate:{state:$cleanState},issues:$issues,consistent:($issues|length==0),nextAction:(if ($issues|length)>0 then "inspect" elif $observed=="working" then "wait" elif $observed=="archived" then "none" else "continue" end)}'
+  '{schema:$schema,task:$task,project:$project,agent:$agent,card:{exists:$cardExists},runtime:{metadataValid:$metadataValid,engine:$engine,generation:($generation|tonumber?),observed:$observed},worktree:{path:$worktree,exists:($worktree != "" and $head != ""),clean:$clean,recordedBranch:$recordedBranch,branch:$branch,head:$head},cleanSlate:{state:$cleanState},issues:$issues,consistent:($issues|length==0),nextAction:(if ($issues|length)>0 then "inspect" elif $observed=="working" then "wait" elif $observed=="archived" then "none" else "continue" end)}'

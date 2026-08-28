@@ -1,6 +1,6 @@
 # Agent harness — central Herdr control home
 
-One planning lead orchestrates visible Claude agents across multiple repositories. The harness stays
+One planning lead orchestrates visible Claude or Codex agents across multiple repositories. The harness stays
 in one control home; project clones live under `projects/`, task worktrees are isolated, and every
 agent runs in its own persistent Herdr tab. Plans and runtime state survive the lead conversation.
 
@@ -129,6 +129,8 @@ only runtime; there is no tmux adapter or generic backend layer.
 ```bash
 scripts/session-start.sh
 scripts/agent-spawn.sh 260828-1200-001-example
+scripts/agent-spawn.sh 260828-1200-001-example --engine codex
+scripts/agent-switch.sh 260828-1200-001-example codex --note "Continue from the current Git state"
 scripts/agent-list.sh
 scripts/agent-state.sh 260828-1200-001-example
 scripts/agent-peek.sh 260828-1200-001-example 80
@@ -139,8 +141,10 @@ scripts/agent-stop.sh 260828-1200-001-example
 
 Projects are central clones under `projects/<project>`. Each task card declares `Project` and `Owner`;
 the runtime creates one `.harness-worktrees/<project>/<task-id>` worktree from that clone and one
-Herdr tab per task. Claude reads the project's own `CLAUDE.md`/`AGENTS.md` from the worktree while the
-central `RULES.md` and `agents/<owner>.md` are supplied as its role prompt. Exact Herdr and worktree
+Herdr tab per task. The engine is selected by explicit `--engine`, task-card `Engine`, project
+configuration, global `config/harness.json`, then the Claude fallback. Both engines receive the
+project instructions, central `RULES.md`, and `agents/<owner>.md`. `agent-switch.sh` can replace an
+idle, done, or blocked task agent in place while preserving its branch and worktree. Exact Herdr and worktree
 identities are stored locally in `.harness-state/<task-id>.meta`; both directories
 are gitignored. `agent-stop.sh` closes only the recorded Herdr tab and deliberately preserves the
 worktree. See [`docs/herdr-runtime.md`](docs/herdr-runtime.md) for the command and safety contract.

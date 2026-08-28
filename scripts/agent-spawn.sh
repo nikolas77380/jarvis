@@ -5,9 +5,13 @@ set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/herdr-runtime-lib.sh"
 # shellcheck source=scripts/harness-state-lib.sh
 . "$HARNESS_ROOT/scripts/harness-state-lib.sh"
+. "$HARNESS_ROOT/scripts/agent-engine-lib.sh"
 
 ID=${1:-}
-[ "$#" -eq 1 ] || die "usage: agent-spawn.sh <task-id>"
+[ "$#" -ge 1 ] || die "usage: agent-spawn.sh <task-id> [--engine claude|codex]"
+shift
+EXPLICIT_ENGINE=''
+if [ "$#" -gt 0 ]; then [ "$#" -eq 2 ] && [ "$1" = --engine ] || die "usage: agent-spawn.sh <task-id> [--engine claude|codex]"; EXPLICIT_ENGINE=$2; fi
 valid_task_id "$ID" || die "invalid task id: $ID"
 state_lock_acquire "$ID"
 require_tools
@@ -15,6 +19,7 @@ require_tools
 CARD=$(task_card "$ID")
 AGENT=$(card_field "$CARD" Owner)
 PROJECT=$(card_field "$CARD" Project)
+ENGINE=$(engine_resolve "$EXPLICIT_ENGINE" "$CARD" "$PROJECT")
 case "$AGENT" in ''|*[!a-zA-Z0-9._-]*) die "task card has an invalid Owner: $AGENT" ;; esac
 case "$PROJECT" in ''|*[!a-zA-Z0-9._-]*) die "task card has an invalid Project: $PROJECT" ;; esac
 PROJECT_ROOT="$HARNESS_ROOT/projects/$PROJECT"
@@ -23,10 +28,7 @@ PROJECT_ROOT="$HARNESS_ROOT/projects/$PROJECT"
 PROJECT_ROOT=$(cd "$PROJECT_ROOT" && pwd -P)
 ROLE="$HARNESS_ROOT/agents/$AGENT.md"
 [ -f "$ROLE" ] || die "central role definition not found: $ROLE"
-MODEL=$(role_field "$ROLE" model)
-EFFORT=$(role_field "$ROLE" effort)
 META=$(task_meta "$ID")
-RUNTIME_NAME=$(agent_runtime_name "$ID")
 if [ -f "$META" ] && [ ! -L "$META" ]; then
   OLD_NAME=$(meta_get "$META" agent_name)
   OLD_STOPPED=$(meta_get "$META" stopped)
@@ -53,28 +55,11 @@ cleanup_failed_spawn() {
 }
 trap cleanup_failed_spawn ERR HUP INT TERM
 
-WORKSPACE=$(workspace_ensure)
-OUT=$(herdr_call tab create --workspace "$WORKSPACE" --cwd "$WORKTREE" --label "$ID" --no-focus)
-TAB=$(printf '%s' "$OUT" | jq -er '.result.tab.tab_id')
-PANE=$(printf '%s' "$OUT" | jq -er '.result.root_pane.pane_id')
-
-SYSTEM_PROMPT="$HARNESS_STATE/$ID.system.md"
-{
-  printf '# Central harness rules\n\n'
-  cat "$HARNESS_ROOT/RULES.md"
-  printf '\n\n# Assigned role: %s\n\n' "$AGENT"
-  cat "$ROLE"
-  if [ ! -f "$WORKTREE/CLAUDE.md" ] && [ -f "$WORKTREE/AGENTS.md" ]; then
-    printf '\n\n# Project instructions (AGENTS.md)\n\n'
-    cat "$WORKTREE/AGENTS.md"
-  fi
-} > "$SYSTEM_PROMPT"
-chmod 600 "$SYSTEM_PROMPT"
-CLAUDE_ARGS=(--append-system-prompt-file "$SYSTEM_PROMPT" --name "$ID" --permission-mode auto)
-[ -z "$MODEL" ] || CLAUDE_ARGS+=(--model "$MODEL")
-[ -z "$EFFORT" ] || CLAUDE_ARGS+=(--effort "$EFFORT")
-herdr_call agent start "$RUNTIME_NAME" --kind claude --pane "$PANE" -- "${CLAUDE_ARGS[@]}" >/dev/null
-herdr_call agent prompt "$RUNTIME_NAME" "$BRIEF" >/dev/null
+LAUNCH=$(engine_start "$ENGINE" "$ID" "$AGENT" "$ROLE" "$WORKTREE" 1) || die "could not start $ENGINE agent"
+TAB=$(printf '%s' "$LAUNCH" | jq -r '.tab'); PANE=$(printf '%s' "$LAUNCH" | jq -r '.pane')
+WORKSPACE=$(printf '%s' "$LAUNCH" | jq -r '.workspace'); RUNTIME_NAME=$(printf '%s' "$LAUNCH" | jq -r '.name')
+SYSTEM_PROMPT=$(printf '%s' "$LAUNCH" | jq -r '.system')
+engine_prompt "$ENGINE" "$RUNTIME_NAME" "$SYSTEM_PROMPT" "$BRIEF" || die "could not prompt $ENGINE agent; worktree preserved for reconciliation"
 
 atomic_meta_write "$META" <<EOF
 schema=harness-herdr-task.v1
@@ -84,10 +69,13 @@ project=$PROJECT
 project_root=$PROJECT_ROOT
 agent=$AGENT
 agent_name=$RUNTIME_NAME
+engine=$ENGINE
+generation=1
 session=$HARNESS_HERDR_SESSION
 workspace=$WORKSPACE
 tab=$TAB
 pane=$PANE
+system_prompt=$SYSTEM_PROMPT
 worktree=$WORKTREE
 branch=$BRANCH
 started_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')

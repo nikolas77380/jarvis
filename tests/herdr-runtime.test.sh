@@ -11,6 +11,7 @@ mkdir -p "$REPO/scripts" "$REPO/plan" "$REPO/agents" "$REPO/projects/demo" "$REP
 cp "$ROOT/scripts/agent-"*.sh "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/herdr-runtime-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-state-lib.sh" "$REPO/scripts/" 2>/dev/null || true
+cp "$ROOT/scripts/agent-engine-lib.sh" "$ROOT/scripts/agent-switch.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/session-start.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-observe.sh" "$ROOT/scripts/fleet-snapshot.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-event-lib.sh" "$ROOT/scripts/events-poll.sh" "$ROOT/scripts/inbox.sh" "$ROOT/scripts/decisions.sh" "$REPO/scripts/" 2>/dev/null || true
@@ -29,8 +30,17 @@ case "$args" in
   *" workspace create "*) printf '%s\n' '{"result":{"workspace":{"workspace_id":"w1"},"tab":{"tab_id":"w1:t0"},"root_pane":{"pane_id":"w1:p0"}}}' ;;
   *" tab create "*) printf '%s\n' '{"result":{"tab":{"tab_id":"w1:t2"},"root_pane":{"pane_id":"w1:p2"}}}' ;;
   *" agent start "*) printf '%s\n' '{"result":{"agent":{"name":"task_agent","agent_status":"idle"}}}' ;;
-  *" agent prompt "*) printf '%s\n' '{"result":{"agent":{"name":"task_agent","agent_status":"done"}}}' ;;
-  *" agent get "*) printf '%s\n' "${FAKE_AGENT_GET:-{\"result\":{\"agent\":{\"agent_status\":\"working\"}}}}" ;;
+  *" agent prompt "*)
+    [ "${FAKE_PROMPT_FAIL:-0}" != 1 ] || exit 1
+    printf '%s\n' '{"result":{"agent":{"name":"task_agent","agent_status":"done"}}}'
+    ;;
+  *" agent get "*)
+    if [ -n "${FAKE_AGENT_GET:-}" ]; then
+      printf '%s\n' "$FAKE_AGENT_GET"
+    else
+      printf '%s\n' '{"result":{"agent":{"agent_status":"working"}}}'
+    fi
+    ;;
   *" agent read "*) printf '%s\n' 'agent output line' ;;
   *" tab focus "*|*" tab close "*) printf '%s\n' '{"result":{"ok":true}}' ;;
   *) printf '%s\n' '{"result":{}}' ;;
@@ -48,6 +58,7 @@ cat > plan/260828-1200-001-demo.md <<'CARD'
 # Demo
 
 **Status:** open · **Owner:** engineer · **Project:** demo · **Blocks:** — · **Depends on:** —
+**Engine:** claude
 PR: none yet
 **Next:** dispatch engineer
 
@@ -85,12 +96,15 @@ grep -qx 'tab=w1:t2' "$META"
 grep -qx 'pane=w1:p2' "$META"
 grep -qx 'agent=engineer' "$META"
 grep -qx 'project=demo' "$META"
+grep -qx 'engine=claude' "$META"
+grep -qx 'generation=1' "$META"
 grep -qx "project_root=$PROJECT_REAL" "$META"
 grep -q ' tab create ' "$FAKE_HERDR_LOG"
 grep -q ' agent start ' "$FAKE_HERDR_LOG"
 grep -q -- '--model sonnet --effort high' "$FAKE_HERDR_LOG"
 grep -q ' agent prompt ' "$FAKE_HERDR_LOG"
-grep -q 'Demo project instructions' .harness-state/260828-1200-001-demo.system.md
+SYSTEM_PROMPT=$(sed -n 's/^system_prompt=//p' "$META")
+grep -q 'Demo project instructions' "$SYSTEM_PROMPT"
 
 if scripts/agent-spawn.sh 260828-1200-001-demo >/dev/null 2>&1; then
   echo 'duplicate spawn unexpectedly succeeded' >&2
@@ -98,6 +112,32 @@ if scripts/agent-spawn.sh 260828-1200-001-demo >/dev/null 2>&1; then
 fi
 
 test "$(scripts/agent-state.sh 260828-1200-001-demo)" = 'state: working · source: herdr'
+if scripts/agent-switch.sh 260828-1200-001-demo codex >/dev/null 2>&1; then
+  echo 'switch while working unexpectedly succeeded' >&2
+  exit 1
+fi
+FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"idle"}}}' scripts/agent-switch.sh 260828-1200-001-demo codex --note 'Continue with Codex' >/dev/null
+grep -qx 'engine=codex' "$META"
+grep -qx 'generation=2' "$META"
+grep -q -- 'agent start .* --kind codex ' "$FAKE_HERDR_LOG"
+grep -q -- '--sandbox workspace-write --ask-for-approval on-request --no-alt-screen' "$FAKE_HERDR_LOG"
+grep -q 'Continue with Codex' "$FAKE_HERDR_LOG"
+test "$(wc -l < .harness-state/agent-history/260828-1200-001-demo.jsonl | tr -d ' ')" = 1
+OBSERVATION=$(FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"idle"}}}' scripts/harness-observe.sh 260828-1200-001-demo)
+test "$(jq -r '.runtime.engine' <<< "$OBSERVATION")" = codex
+test "$(jq -r '.runtime.generation' <<< "$OBSERVATION")" = 2
+scripts/agent-list.sh | grep -q 'codex.*2'
+if FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"done"}}}' FAKE_PROMPT_FAIL=1 scripts/agent-switch.sh 260828-1200-001-demo claude >/dev/null 2>&1; then
+  echo 'switch with failed target prompt unexpectedly succeeded' >&2
+  exit 1
+fi
+grep -qx 'engine=codex' "$META"
+grep -qx 'generation=2' "$META"
+test "$(wc -l < .harness-state/agent-history/260828-1200-001-demo.jsonl | tr -d ' ')" = 1
+FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"done"}}}' scripts/agent-switch.sh 260828-1200-001-demo claude >/dev/null
+grep -qx 'engine=claude' "$META"
+grep -qx 'generation=3' "$META"
+test "$(wc -l < .harness-state/agent-history/260828-1200-001-demo.jsonl | tr -d ' ')" = 2
 test "$(FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"mystery"}}}' scripts/agent-state.sh 260828-1200-001-demo)" = 'state: unknown · source: herdr'
 scripts/agent-peek.sh 260828-1200-001-demo 20 | grep -q 'agent output line'
 scripts/agent-send.sh 260828-1200-001-demo 'Please continue' >/dev/null

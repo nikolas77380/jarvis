@@ -1,41 +1,41 @@
-# Layered memory — specification
+# Live Claude/Codex switching — specification
 
 ## Objective
 
-Load durable knowledge at the narrowest valid scope: captain preferences, cross-project harness
-rules, one selected project's facts, and optional unresolved incidents. Preserve evidence and never
-promote an observation into a standing rule automatically.
+Keep Herdr as the only runtime while allowing each task agent to start on, or safely hand off
+between, Claude and Codex without changing its worktree or Git branch.
 
-## Commands
+## Commands and selection
 
 ```text
-scripts/memory-context.sh [--project <name>] [--include-incidents] [--json]
-scripts/memory-record.sh incident <project|global> <slug> --summary <text>
-scripts/memory-promote.sh <project|global>/<slug> --scope captain|harness|project [--project <name>]
-scripts/session-start.sh [--project <name>]
+scripts/agent-spawn.sh <task-id> [--engine claude|codex]
+scripts/agent-switch.sh <task-id> claude|codex [--note <text>]
 ```
 
-## Storage and invariants
+Selection precedence is explicit flag, task `**Engine:**`, project config `.engine`, global
+`config/harness.json.defaultEngine`, then `claude`. Runtime metadata records engine and generation.
 
-- `memory/captain.md`: explicit user preferences only.
-- `memory/harness.md`: verified rules that apply across repositories.
-- `memory/projects/<name>.md`: durable facts limited to one project.
-- `memory/incidents/<project|global>/<slug>.md`: observations with `open|promoted|dismissed` status.
-- Existing `feedback_*.md` files remain immutable evidence and are indexed from the new layers.
-- Context excludes incidents by default and never loads another project's memory.
-- Promotion is explicit, append-only at the target, records its source path, and atomically marks the
-  incident promoted. A promoted incident cannot be promoted twice.
+## Switch invariants
+
+- Only `idle|done|blocked` may switch; `working|unknown` refuses.
+- The new agent starts in a new Herdr tab in the exact recorded worktree.
+- HEAD, branch, and porcelain state are captured before launch and must remain unchanged before the
+  handoff is submitted.
+- Metadata changes atomically only after the target agent is ready. A failed launch closes only the
+  new tab and preserves the old binding.
+- After publication, the old exact tab is closed best-effort and history is appended. No conversation
+  resume is claimed: the new engine receives central rules, role, original brief, Git/state summary,
+  and the optional note.
+- Clean Slate stage agents remain unchanged in this slice.
+
+## Engine adapters
+
+- Claude: existing append-system-prompt, model, effort, and auto permission flags.
+- Codex: interactive Herdr `kind=codex`, workspace-write sandbox, on-request approvals, no alt screen,
+  optional model and `model_reasoning_effort`. Central rules and role are delivered in the handoff.
 
 ## Testing and boundaries
 
-Shell integration tests cover project isolation, default selection, incident creation, explicit
-promotion, duplicate refusal, and session-start project routing. No vector database, embeddings,
-automatic summarization, token threshold, or automatic promotion is introduced.
-
-## Implementation order
-
-1. Layer files and project template.
-2. Context selector.
-3. Incident record and promotion.
-4. Session-start routing and legacy evidence index.
-5. Documentation and full regression.
+Fake-Herdr integration covers precedence, spawn kind/metadata, safe-state refusal, successful switch,
+generation/history, and launch rollback. Never force-switch a working/unknown agent, switch branches,
+modify app files, or grant danger-full-access.

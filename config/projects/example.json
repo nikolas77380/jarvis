@@ -1,4 +1,5 @@
 {
+  "engine": "claude",
   "baseBranch": "main",
   "publish": true,
   "checks": [

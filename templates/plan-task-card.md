@@ -2,6 +2,7 @@
 
 **Status:** open · **Owner:** {{AGENT}} · **Project:** {{PROJECT}} · **Blocks:** — · **Depends on:** —
 **Validation:** strict
+**Engine:** claude
 PR: none yet
 **Next:** <the literal next dispatch or command — see the rules below>
 
