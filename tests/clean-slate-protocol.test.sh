@@ -27,6 +27,18 @@ case " $* " in
 esac
 FAKE
 chmod +x "$FAKEBIN/herdr"
+cat > "$FAKEBIN/gh-axi" <<'FAKE'
+#!/usr/bin/env bash
+set -euo pipefail
+: "${FAKE_GH_LOG:?}"
+printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+case " $* " in
+  *" pr list "*) printf '%s\n' 'pull_requests[1]:' '  - number: 42' '    state: OPEN' ;;
+  *" pr checks "*) printf '%s\n' 'summary: 2 passed, 0 failed, 2 total' ;;
+  *" pr create "*) printf '%s\n' 'created:' '  number: 99' ;;
+esac
+FAKE
+chmod +x "$FAKEBIN/gh-axi"
 
 git -C "$REPO/projects/demo" init -q
 git -C "$REPO/projects/demo" config user.email test@example.com
@@ -51,6 +63,11 @@ cat > "$REPO/plan/task-fail.md" <<'CARD'
 **Status:** in-review · **Owner:** engineer · **Project:** demo
 **Validation:** direct
 CARD
+cat > "$REPO/plan/task-publish.md" <<'CARD'
+# Publishing recovery
+**Status:** in-review · **Owner:** engineer · **Project:** demo
+**Validation:** direct
+CARD
 cat > "$REPO/config/projects/demo.json" <<'JSON'
 {"baseBranch":"main","publish":false,"checks":[["sh","-c","printf checked"]]}
 JSON
@@ -69,10 +86,12 @@ EOF
 write_task_meta task-strict
 write_task_meta task-direct
 write_task_meta task-fail
+write_task_meta task-publish
 
 export HARNESS_STATE_DIR="$REPO/.harness-state"
 export PATH="$FAKEBIN:$PATH"
 export FAKE_HERDR_LOG="$TMP/herdr.log"
+export FAKE_GH_LOG="$TMP/gh.log"
 export HARNESS_HERDR_SESSION=test-clean-slate
 
 "$REPO/scripts/clean-slate-protocol.sh" run task-strict | grep -q 'state=reviewing'
@@ -111,5 +130,26 @@ cat > "$REPO/config/projects/demo.json" <<'JSON'
 JSON
 "$REPO/scripts/clean-slate-protocol.sh" run task-fail | grep -q 'state=failed'
 test "$("$REPO/scripts/clean-slate-protocol.sh" status task-fail)" = 'clean-slate: task-fail · mode=direct · state=failed · round=1'
+cat > "$REPO/config/projects/demo.json" <<'JSON'
+{"baseBranch":"main","publish":false,"checks":[["sh","-c","exit 0"]]}
+JSON
+"$REPO/scripts/clean-slate-protocol.sh" retry task-fail | grep -q 'state=ready'
+
+BARE="$TMP/remote.git"
+git init -q --bare "$BARE"
+git -C "$WORKTREE" remote add origin "$BARE"
+cat > "$REPO/config/projects/demo.json" <<'JSON'
+{"baseBranch":"main","publish":true,"checks":[]}
+JSON
+"$REPO/scripts/clean-slate-protocol.sh" run task-publish | grep -q 'state=ci'
+if grep -q 'pr create' "$FAKE_GH_LOG"; then
+  echo 'recovery created a duplicate PR' >&2
+  exit 1
+fi
+grep -qx 'pr=42' "$REPO/.harness-state/clean-slate/task-publish.meta"
+sed -i.bak 's/^state=.*/state=failed/;s/^failure_stage=.*/failure_stage=publishing/;/^pr=/d' "$REPO/.harness-state/clean-slate/task-publish.meta"
+rm "$REPO/.harness-state/clean-slate/task-publish.meta.bak"
+"$REPO/scripts/clean-slate-protocol.sh" reconcile task-publish | grep -q 'state=ready'
+grep -qx 'pr=42' "$REPO/.harness-state/clean-slate/task-publish.meta"
 
 echo 'clean slate protocol tests: ok'

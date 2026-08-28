@@ -12,6 +12,8 @@ usage:
   clean-slate-protocol.sh run <task-id>
   clean-slate-protocol.sh status <task-id> [--json]
   clean-slate-protocol.sh respond <task-id> --action fix|approve|skip
+  clean-slate-protocol.sh reconcile <task-id>
+  clean-slate-protocol.sh retry <task-id>
   clean-slate-protocol.sh abort <task-id>
   clean-slate-protocol.sh logs <task-id>
 EOF
@@ -160,16 +162,25 @@ clean_launch_stage() {
   clean_log "$file" "launched stage=$stage round=$round agent=$name pane=$pane"
 }
 
+clean_existing_pr() {
+  local file=$1 worktree branch output
+  worktree=$(meta_get "$file" worktree)
+  branch=$(git -C "$worktree" branch --show-current)
+  output=$(cd "$worktree" && gh-axi pr list --state open --head "$branch" --fields number,state,url) || return 1
+  printf '%s\n' "$output" | sed -n -E 's/.*number:[[:space:]]*([0-9]+).*/\1/p' | head -1
+}
+
 clean_publish() {
   local file=$1 config worktree publish branch base card title body output pr
   config=$(meta_get "$file" config)
   publish=$(jq -r 'if has("publish") then .publish else true end' "$config")
   if [ "$publish" = false ]; then
     clean_set "$file" state ready
+    clean_set "$file" failure_stage ''
     clean_log "$file" "publishing disabled; entered state=ready"
     return
   fi
-  command -v gh-axi >/dev/null 2>&1 || { clean_set "$file" state failed; die "gh-axi is required to publish"; }
+  command -v gh-axi >/dev/null 2>&1 || { clean_set "$file" state failed; clean_set "$file" failure_stage publishing; die "gh-axi is required to publish"; }
   worktree=$(meta_get "$file" worktree)
   branch=$(git -C "$worktree" branch --show-current)
   base=$(jq -r '.baseBranch' "$config")
@@ -187,19 +198,30 @@ clean_publish() {
   clean_log "$file" "entered state=publishing"
   if ! git -C "$worktree" push -u origin "$branch"; then
     clean_set "$file" state failed
+    clean_set "$file" failure_stage publishing
     clean_log "$file" "publishing failed during git push"
     return 1
   fi
+  pr=$(clean_existing_pr "$file" || true)
+  if [ -n "$pr" ]; then
+    clean_set "$file" pr "$pr"
+    clean_set "$file" state ci
+    clean_set "$file" failure_stage ''
+    clean_log "$file" "recovered existing pr=$pr; entered state=ci"
+    return
+  fi
   if ! output=$(cd "$worktree" && gh-axi pr create --title "$title" --body-file "$body" --base "$base" --head "$branch"); then
     clean_set "$file" state failed
+    clean_set "$file" failure_stage publishing
     clean_log "$file" "publishing failed during PR creation"
     return 1
   fi
   printf '%s\n' "$output" > "$(meta_get "$file" run_dir)/pr-create.log"
   pr=$(printf '%s\n' "$output" | sed -n -E 's/.*number:[[:space:]]*([0-9]+).*/\1/p' | head -1)
-  [ -n "$pr" ] || { clean_set "$file" state failed; die "could not parse PR number from gh-axi output"; }
+  [ -n "$pr" ] || { clean_set "$file" state failed; clean_set "$file" failure_stage publishing; die "could not parse PR number from gh-axi output"; }
   clean_set "$file" pr "$pr"
   clean_set "$file" state ci
+  clean_set "$file" failure_stage ''
   clean_log "$file" "created pr=$pr; entered state=ci"
 }
 
@@ -229,6 +251,7 @@ clean_verify() {
   done < <(jq -r '.checks[]? | @tsv' "$config")
   if [ "$failed" = 1 ]; then
     clean_set "$file" state failed
+    clean_set "$file" failure_stage verifying
     return 1
   fi
   clean_publish "$file"
@@ -240,15 +263,17 @@ clean_reconcile_ci() {
   [ "$state" = ci ] || return 0
   pr=$(meta_get "$file" pr)
   worktree=$(meta_get "$file" worktree)
-  output=$(cd "$worktree" && gh-axi pr checks "$pr") || { clean_set "$file" state failed; return 0; }
+  output=$(cd "$worktree" && gh-axi pr checks "$pr") || { clean_set "$file" state failed; clean_set "$file" failure_stage ci; return 0; }
   printf '%s\n' "$output" > "$(meta_get "$file" run_dir)/ci.log"
   if printf '%s\n' "$output" | grep -Eq '[1-9][0-9]* failed'; then
     clean_set "$file" state failed
+    clean_set "$file" failure_stage ci
     clean_log "$file" "ci outcome=fail"
   elif printf '%s\n' "$output" | grep -Eq '[1-9][0-9]* pending'; then
     clean_log "$file" "ci outcome=pending"
   else
     clean_set "$file" state ready
+    clean_set "$file" failure_stage ''
     clean_log "$file" "ci outcome=pass; entered state=ready"
   fi
 }
@@ -345,6 +370,7 @@ config=$config
 run_dir=$run_dir
 log=$log
 stage_agent=
+failure_stage=
 started_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 updated_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 EOF
@@ -367,7 +393,9 @@ command_status() {
       --arg state "$(meta_get "$file" state)" \
       --argjson round "$(meta_get "$file" round)" \
       --arg head "$(meta_get "$file" head)" \
-      '{schema:$schema,task:$task,project:$project,mode:$mode,state:$state,round:$round,head:$head}'
+      --arg failureStage "$(meta_get "$file" failure_stage)" \
+      --arg pr "$(meta_get "$file" pr)" \
+      '{schema:$schema,task:$task,project:$project,mode:$mode,state:$state,round:$round,head:$head,failureStage:$failureStage,pr:$pr}'
   else
     [ -z "$format" ] || usage
     clean_summary "$file"
@@ -410,6 +438,41 @@ command_logs() {
   cat "$log"
 }
 
+command_reconcile() {
+  local file state stage pr
+  file=$(clean_require_meta "$1")
+  clean_reconcile "$file"
+  state=$(meta_get "$file" state)
+  stage=$(meta_get "$file" failure_stage)
+  if [ "$state" = failed ] && [ "$stage" = publishing ]; then
+    pr=$(clean_existing_pr "$file" || true)
+    if [ -n "$pr" ]; then
+      clean_set "$file" pr "$pr"
+      clean_set "$file" state ci
+      clean_set "$file" failure_stage ''
+      clean_log "$file" "reconcile recovered existing pr=$pr"
+      clean_reconcile_ci "$file"
+    fi
+  fi
+  clean_summary "$file"
+}
+
+command_retry() {
+  local file state stage
+  file=$(clean_require_meta "$1")
+  state=$(meta_get "$file" state)
+  [ "$state" = failed ] || die "retry requires state=failed, got: $state"
+  stage=$(meta_get "$file" failure_stage)
+  clean_log "$file" "retry requested stage=$stage"
+  case "$stage" in
+    verifying) clean_verify "$file" || true ;;
+    publishing) clean_publish "$file" || true ;;
+    ci) clean_set "$file" state ci; clean_reconcile_ci "$file" ;;
+    *) die "failed run has no retryable failure_stage; use reconcile or an explicit response" ;;
+  esac
+  clean_summary "$file"
+}
+
 [ "$#" -ge 2 ] || usage
 COMMAND=$1
 ID=$2
@@ -425,5 +488,7 @@ case "$COMMAND" in
     ;;
   abort) [ "$#" -eq 0 ] || usage; command_abort "$ID" ;;
   logs) [ "$#" -eq 0 ] || usage; command_logs "$ID" ;;
+  reconcile) [ "$#" -eq 0 ] || usage; command_reconcile "$ID" ;;
+  retry) [ "$#" -eq 0 ] || usage; command_retry "$ID" ;;
   *) usage ;;
 esac

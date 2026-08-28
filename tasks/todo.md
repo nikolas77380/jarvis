@@ -6,7 +6,7 @@
 - [x] Doctor and agent reconciliation
   - Acceptance: drift is structured; repair is conservative and explicit.
   - Verify: `tests/doctor-reconcile.test.sh`
-- [ ] Clean Slate reconcile and retry
+- [x] Clean Slate reconcile and retry
   - Acceptance: partial operations resume without duplicate agent, push, or PR.
   - Verify: `tests/clean-slate-recovery.test.sh`
 - [ ] Safe teardown

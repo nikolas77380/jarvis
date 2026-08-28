@@ -18,6 +18,8 @@ Add `**Validation:** strict` or `direct` to the task card. Missing values defaul
 scripts/clean-slate-protocol.sh run <task-id>
 scripts/clean-slate-protocol.sh status <task-id>
 scripts/clean-slate-protocol.sh status <task-id> --json
+scripts/clean-slate-protocol.sh reconcile <task-id>
+scripts/clean-slate-protocol.sh retry <task-id>
 scripts/clean-slate-protocol.sh logs <task-id>
 ```
 
@@ -31,6 +33,10 @@ scripts/clean-slate-protocol.sh respond <task-id> --action skip
 
 `fix` dispatches the bounded fixer. `approve` and `skip` proceed to deterministic checks. A status
 read reconciles completed agent JSON and, while CI is active, refreshes `gh-axi pr checks`.
+
+`reconcile` records results that already exist, including a PR found for the exact task branch.
+`retry` is accepted only for a recorded failure in verification, publishing, or CI observation.
+Publishing performs an idempotent push and searches for an existing PR before creating one.
 
 ## Cost and safety model
 
