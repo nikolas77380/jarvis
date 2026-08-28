@@ -40,6 +40,7 @@ scripts/owns-check.sh          refuses two ACTIVE cards claiming the same file o
 memory/                        portable pipeline lessons for an agent's memory store, with its own README
 scripts/agent-*.sh             spawn, list, inspect, steer, focus and stop Herdr agents
 scripts/session-start.sh       read-only plan/runtime recovery view
+scripts/clean-slate-protocol.sh bounded review, project checks, PR and CI gate
 projects/                      local project clones, gitignored
 .harness-state/                local Herdr task identities, gitignored
 docs/evidence.md               the measurements behind every rule, and what is NOT yet proven
@@ -136,6 +137,13 @@ worktree. See [`docs/herdr-runtime.md`](docs/herdr-runtime.md) for the command a
 
 Context and spend scripts remain useful diagnostics, but no token threshold forces a handoff or
 `/clear`. `handoff.sh` is now only an explicit transfer to another orchestrator session.
+
+## Clean Slate validation
+
+`clean-slate-protocol` is the optimized, harness-native successor to Jarvis's external
+`no-mistakes` command. It uses Herdr only for independent review and bounded fixes; project checks,
+PR creation, and CI monitoring are deterministic. See
+[`docs/clean-slate-protocol.md`](docs/clean-slate-protocol.md).
 
 ## Three things to watch when you adopt it
 

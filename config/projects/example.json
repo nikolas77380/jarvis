@@ -1,0 +1,9 @@
+{
+  "baseBranch": "main",
+  "publish": true,
+  "checks": [
+    ["pnpm", "test"],
+    ["pnpm", "lint"],
+    ["pnpm", "typecheck"]
+  ]
+}
