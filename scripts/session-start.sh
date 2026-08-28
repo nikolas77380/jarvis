@@ -3,9 +3,17 @@
 set -euo pipefail
 # shellcheck source=scripts/herdr-runtime-lib.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/herdr-runtime-lib.sh"
+PROJECT=''
+if [ "$#" -gt 0 ]; then
+  [ "$#" -eq 2 ] && [ "$1" = --project ] || die 'usage: session-start.sh [--project <name>]'
+  PROJECT=$2
+fi
 
 echo 'HARNESS SESSION START'
 if ! "$HARNESS_ROOT/scripts/events-poll.sh" >/dev/null; then echo 'warning: event poll failed' >&2; fi
+echo
+echo 'MEMORY CONTEXT'
+if [ -n "$PROJECT" ]; then "$HARNESS_ROOT/scripts/memory-context.sh" --project "$PROJECT"; else "$HARNESS_ROOT/scripts/memory-context.sh"; fi
 echo
 echo 'OPEN DECISIONS'
 DECISIONS=$("$HARNESS_ROOT/scripts/decisions.sh" list)

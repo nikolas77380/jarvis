@@ -48,6 +48,9 @@ scripts/agent-reconcile.sh     conservative explicit runtime metadata repair
 scripts/events-poll.sh         append actionable fleet transitions to the durable inbox
 scripts/inbox.sh               list, acknowledge and drain durable events
 scripts/decisions.sh           open, list and resolve keyed captain decisions
+scripts/memory-context.sh      load captain, harness and one project's durable memory
+scripts/memory-record.sh       record a scoped incident without promoting it
+scripts/memory-promote.sh      explicitly promote an incident with provenance
 projects/                      local project clones, gitignored
 .harness-state/                local Herdr task identities, gitignored
 docs/evidence.md               the measurements behind every rule, and what is NOT yet proven

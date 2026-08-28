@@ -7,13 +7,17 @@ trap 'rm -rf "$TMP"' EXIT
 
 REPO="$TMP/repo"
 FAKEBIN="$TMP/bin"
-mkdir -p "$REPO/scripts" "$REPO/plan" "$REPO/agents" "$REPO/projects/demo" "$FAKEBIN"
+mkdir -p "$REPO/scripts" "$REPO/plan" "$REPO/agents" "$REPO/projects/demo" "$REPO/memory/projects" "$FAKEBIN"
 cp "$ROOT/scripts/agent-"*.sh "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/herdr-runtime-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-state-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/session-start.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-observe.sh" "$ROOT/scripts/fleet-snapshot.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-event-lib.sh" "$ROOT/scripts/events-poll.sh" "$ROOT/scripts/inbox.sh" "$ROOT/scripts/decisions.sh" "$REPO/scripts/" 2>/dev/null || true
+cp "$ROOT/scripts/memory-context.sh" "$REPO/scripts/" 2>/dev/null || true
+printf '# Captain\n' > "$REPO/memory/captain.md"
+printf '# Harness\n' > "$REPO/memory/harness.md"
+printf '# Demo project memory\n' > "$REPO/memory/projects/demo.md"
 
 cat > "$FAKEBIN/herdr" <<'FAKE'
 #!/usr/bin/env bash
@@ -99,7 +103,10 @@ scripts/agent-peek.sh 260828-1200-001-demo 20 | grep -q 'agent output line'
 scripts/agent-send.sh 260828-1200-001-demo 'Please continue' >/dev/null
 scripts/agent-attach.sh 260828-1200-001-demo >/dev/null
 scripts/agent-list.sh | grep -q '260828-1200-001-demo'
-scripts/session-start.sh | grep -q '260828-1200-001-demo'
+SESSION_OUTPUT=$(scripts/session-start.sh)
+grep -q '260828-1200-001-demo' <<< "$SESSION_OUTPUT"
+SESSION_OUTPUT=$(scripts/session-start.sh --project demo)
+grep -q 'Demo project memory' <<< "$SESSION_OUTPUT"
 
 scripts/agent-stop.sh 260828-1200-001-demo >/dev/null
 grep -q ' tab close w1:t2' "$FAKE_HERDR_LOG"

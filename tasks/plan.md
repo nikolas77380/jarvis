@@ -1,44 +1,41 @@
-# Durable inbox and decisions — specification
+# Layered memory — specification
 
 ## Objective
 
-Persist actionable task transitions and captain decisions across sessions without a daemon or an
-LLM poller. Session start must reconstruct attention from append-only local records.
+Load durable knowledge at the narrowest valid scope: captain preferences, cross-project harness
+rules, one selected project's facts, and optional unresolved incidents. Preserve evidence and never
+promote an observation into a standing rule automatically.
 
 ## Commands
 
 ```text
-scripts/inbox.sh list [--json]
-scripts/inbox.sh acknowledge <event-id>
-scripts/inbox.sh drain
-scripts/decisions.sh open <task-id> --key <key> --question <text>
-scripts/decisions.sh list [--json]
-scripts/decisions.sh resolve <key> --answer <text>
-scripts/events-poll.sh
+scripts/memory-context.sh [--project <name>] [--include-incidents] [--json]
+scripts/memory-record.sh incident <project|global> <slug> --summary <text>
+scripts/memory-promote.sh <project|global>/<slug> --scope captain|harness|project [--project <name>]
+scripts/session-start.sh [--project <name>]
 ```
 
-## Interfaces
+## Storage and invariants
 
-- `.harness-state/events.jsonl` is append-only `harness-event.v1`; acknowledgements are a separate
-  append-only ledger. Event IDs are stable hashes of task, type, and observed generation.
-- `.harness-state/decisions.jsonl` is an append-only opened/resolved ledger keyed by a caller-owned
-  stable key. Reopening an unresolved key is idempotent; resolving an absent/already resolved key
-  refuses.
-- Poll compares `fleet-snapshot.v1` with the previous durable snapshot and emits only actionable
-  transitions. First observation emits actionable current states but not routine idle/working state.
-- Session start polls, then renders open decisions, unread events, and fleet. No network access and
-  no automatic repair occur.
+- `memory/captain.md`: explicit user preferences only.
+- `memory/harness.md`: verified rules that apply across repositories.
+- `memory/projects/<name>.md`: durable facts limited to one project.
+- `memory/incidents/<project|global>/<slug>.md`: observations with `open|promoted|dismissed` status.
+- Existing `feedback_*.md` files remain immutable evidence and are indexed from the new layers.
+- Context excludes incidents by default and never loads another project's memory.
+- Promotion is explicit, append-only at the target, records its source path, and atomically marks the
+  incident promoted. A promoted incident cannot be promoted twice.
 
 ## Testing and boundaries
 
-Shell integration tests cover append validity, deduplication, acknowledgement without event
-rewrites, decision folding, transition deduplication, and session recovery. All writes use global
-state locks and atomic snapshot replacement. Never delete event/decision history or infer a
-decision resolution from task prose.
+Shell integration tests cover project isolation, default selection, incident creation, explicit
+promotion, duplicate refusal, and session-start project routing. No vector database, embeddings,
+automatic summarization, token threshold, or automatic promotion is introduced.
 
 ## Implementation order
 
-1. Event and acknowledgement ledger.
-2. Keyed decision ledger.
-3. Fleet transition poll and automatic decision findings.
-4. Session-start presentation, documentation, full regression.
+1. Layer files and project template.
+2. Context selector.
+3. Incident record and promotion.
+4. Session-start routing and legacy evidence index.
+5. Documentation and full regression.

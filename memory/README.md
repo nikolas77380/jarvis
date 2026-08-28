@@ -1,4 +1,20 @@
-# Portable agent memory
+# Layered harness memory
+
+Normal context loads `captain.md`, `harness.md`, and at most one `projects/<project>.md`. Temporary
+observations live under `incidents/` and are excluded unless explicitly requested. Promotion into a
+durable layer is always explicit and records provenance.
+
+The older `feedback_*.md` and `project_*.md` files below remain detailed evidence. The concise upper
+layers link to them instead of duplicating their incident history.
+
+```bash
+scripts/memory-context.sh --project <project>
+scripts/memory-context.sh --project <project> --include-incidents
+scripts/memory-record.sh incident <project|global> <slug> --summary "..."
+scripts/memory-promote.sh <project|global>/<slug> --scope harness
+```
+
+## Legacy portable memory
 
 This directory holds agent-memory entries that are **pipeline lessons**, not project facts — the
 subset of a memory store that survives a move to a different codebase because it is about how the
