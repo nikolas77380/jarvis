@@ -8,9 +8,8 @@
 # report*, not to *closing a session* — and this script is the thing that refuses to let you skip
 # it: it fails if the card's `**Next:**` line still says what it said before the report arrived.
 #
-# It also answers the only question that decides whether to keep going: how much is this session
-# paying per turn to remember itself. Past ~400k cache-read per lead message the remaining job is
-# the card, the OVERVIEW.md entry, and stop.
+# It also reports how much this session pays per turn to remember itself. That measurement is
+# diagnostic; it never forces a handoff or context reset.
 #
 # Usage: scripts/checkpoint.sh T08
 #        scripts/checkpoint.sh T08 --no-spend    # skip the transcript scan (a second or two)
@@ -89,7 +88,7 @@ fi
 # 5. What this session costs per turn to remember itself.
 if [ "$NOSPEND" != "--no-spend" ]; then
   echo "  →  lead context:"
-  scripts/agent-spend.sh 2>/dev/null | grep -E 'lead context re-read|^HANDOFF' | sed 's/^/     /' || true
+  scripts/agent-spend.sh 2>/dev/null | grep -E 'lead context re-read' | sed 's/^/     /' || true
 fi
 
 echo
@@ -97,4 +96,4 @@ if [ "$problems" -gt 0 ]; then
   echo "$problems thing(s) to fix before dispatching anything else."
   exit 1
 fi
-echo "Clear to dispatch. If HANDOFF appeared above, run scripts/handoff.sh $TASK instead."
+echo "Clear to dispatch."

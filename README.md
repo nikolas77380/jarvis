@@ -1,8 +1,8 @@
-# Agent harness — portable version
+# Agent harness — central Herdr control home
 
-The delegation pipeline as it actually runs, with the project-specific parts pulled out. Copy this
-folder into another repo, fill the placeholders, and you have the same setup: one planning lead, cheap
-implementers, three review tiers, and three files that hold the state instead of a conversation.
+One planning lead orchestrates visible Claude agents across multiple repositories. The harness stays
+in one control home; project clones live under `projects/`, task worktrees are isolated, and every
+agent runs in its own persistent Herdr tab. Plans and runtime state survive the lead conversation.
 
 Extracted from `bridgeks` on 2026-08-20, after two days of measured use, and moved out of that repo
 the same day: it lives at `~/projects/harness` so it survives any git operation in a project and can
@@ -14,7 +14,7 @@ rule here came from a number or an incident, and a rule whose reason is known su
 ## What's in here
 
 ```
-RULES.md                       the four sections to paste into the project's CLAUDE.md
+RULES.md                       central orchestration rules supplied to every agent
 agents/orchestrator.md         the lead — plans, delegates, verifies, never writes app code
 agents/engineer.md             implementer template (one per stack), sonnet
 agents/reviewer.md             logic-tier reviewer template (one per stack), opus
@@ -32,55 +32,45 @@ scripts/checkpoint.sh          run when an agent reports back: fails while the c
 scripts/handoff.sh             end a session cleanly and print the next session's opening prompt
 scripts/review-rounds.sh       review rounds that actually RAN, vs what the card claims
 scripts/overview-append.sh     append to OVERVIEW.md without reading it first
-scripts/agent-spend.sh         what the pipeline consumed, by role, with a HANDOFF warning
+scripts/agent-spend.sh         diagnostic pipeline spend by role
 scripts/context-size.sh        context split into delegation vs own work, per agent; statusLine source
 scripts/new-task.sh            mint a task id, card, INDEX row and dashboard — and COMMIT, in one step
 scripts/plan-check.sh          every card must be tracked by git and linked from plan/INDEX.md
 scripts/owns-check.sh          refuses two ACTIVE cards claiming the same file or glob
 memory/                        portable pipeline lessons for an agent's memory store, with its own README
+scripts/agent-*.sh             spawn, list, inspect, steer, focus and stop Herdr agents
+scripts/session-start.sh       read-only plan/runtime recovery view
+projects/                      local project clones, gitignored
+.harness-state/                local Herdr task identities, gitignored
 docs/evidence.md               the measurements behind every rule, and what is NOT yet proven
 ```
 
-## Adopting it in a new repo
+## Initial setup
 
-1. **Copy the pieces into place.**
+1. Install `herdr`, `jq`, `git`, and Claude Code. Start the orchestrator from a Herdr-managed pane.
+2. Create the central durable artifacts once:
+
+   ```bash
+   mkdir -p plan reports docs/overview-archive projects
+   cp templates/plan-INDEX.md plan/INDEX.md
+   cp templates/plan-task-card.md plan/TEMPLATE.md
+   cp templates/OVERVIEW.md OVERVIEW.md
+   cp templates/reports-README.md reports/README.md
    ```
-   H=~/projects/harness            # run the rest from the target project's root
-   mkdir -p .claude/agents .claude/agent-memory scripts plan reports docs/decisions docs/overview-archive .github/workflows
-   cp -r $H/agents/. .claude/agents/          # then rename per stack, see step 2
-   cp $H/scripts/*.sh scripts/ && chmod +x scripts/*.sh
-   cp $H/templates/dashboard/dashboard-build.mjs scripts/
-   cp $H/templates/plan-INDEX.md plan/INDEX.md
-   cp $H/templates/plan-task-card.md plan/TEMPLATE.md
-   cp $H/templates/OVERVIEW.md OVERVIEW.md
-   cp $H/templates/reports-README.md reports/README.md
-   cp $H/templates/ci-plan-integrity.yml .github/workflows/plan-integrity.yml
-   cp -r $H/memory/. .claude/agent-memory/    # see memory/README.md for which store each file belongs in
+
+3. Clone each managed project under its stable central name:
+
+   ```bash
+   git clone <origin> projects/bridgeks
+   git clone <origin> projects/marketplace
    ```
-   Create `docs/overview-archive/` even though it looks unused — the overview trim writes there, and
-   on 2026-08-20 a trim that assumed the directory existed wrote the shortened file first and then
-   failed, briefly losing three entries.
-2. **Instantiate the per-stack agents.** `engineer.md` and `reviewer.md` are templates: copy one pair
-   per app or stack (`web-engineer.md` + `web-reviewer.md`, `api-engineer.md` + `api-reviewer.md`) and
-   fill the `name:` in the frontmatter to match the filename. `orchestrator.md`,
-   `mechanical-reviewer.md`, `deputy.md` and `design-qa.md` are used as-is.
-3. **Paste `RULES.md`'s four sections into the project's `CLAUDE.md`** and replace the placeholders.
-   Keep them in the rules file; keep the *reasoning* in `docs/decisions/` and link it — see the last
-   section of `docs/evidence.md` for why that split matters.
-4. **Wire the plan-integrity gate both ways.** The CI job copied in step 1 needs no arguments. For the
-   local half: `mkdir -p .husky && cp $H/templates/husky-pre-commit .husky/pre-commit && chmod +x
-   .husky/pre-commit` (and install husky if the project has no hooks yet). The hook is best-effort —
-   it is dead in a checkout with no installed dependencies — and CI can only ever see the INDEXED
-   half of the check, so neither replaces the other.
-5. **Ignore the worktrees.** Add `.claude/worktrees/` to `.gitignore` **before** committing
-   `.claude/`. Agent worktrees are per-run checkouts; without this line they get staged (in our repo
-   that was 30 files of duplicated tree waiting to be committed).
-6. **Commit `.claude/agents/`.** The definitions belong in git — otherwise the setup exists on one
-   laptop, in one worktree.
-7. **Fill `plan/INDEX.md` with the real work** before dispatching anything, minting each card with
-   `scripts/new-task.sh <slug>` rather than writing files by hand — it commits the card and its INDEX
-   row together, which is what makes the claim visible to every other session. An empty index means
-   the lead keeps the plan in its own context, which is the failure this structure removes.
+
+   Each clone owns its project-specific `CLAUDE.md` or `AGENTS.md`. Do not copy the central harness
+   scripts or memory into it.
+4. Instantiate central roles in `agents/`. For example, copy `engineer.md` to `web-engineer.md` and
+   fill its placeholders. The task card's `Owner` must equal the role filename without `.md`.
+5. Mint cards with `scripts/new-task.sh <slug>`, fill `Project`, `Owner`, brief and checks, then run
+   `scripts/agent-spawn.sh <task-id>`.
 
 ### Placeholders
 
@@ -114,11 +104,38 @@ matters because a long planning session is the most expensive thing in the pipel
 The lead's session is therefore deliberately short, and the boundary is a **card state transition**
 (plan → brief written; brief → PR open; PR → review round closed; approved → merged), one per session.
 The card is written the moment an agent reports back, not at the end of the day — `checkpoint.sh`
-refuses to pass while it is stale — because usage limits and dead agent runs happen mid-task, and
-whatever is not on the card then is lost. A usage limit is therefore a handoff, never a pause. Each
-card carries a `**Next:**` line holding the literal next dispatch, so a fresh session executes an
-instruction instead of reconstructing a plan. See `docs/evidence.md` for the arithmetic that makes
-this worth the discipline.
+refuses to pass while it is stale — because interrupted sessions and dead agent runs happen mid-task,
+and whatever is not on the card then is lost. Context size is diagnostic and never forces a reset.
+Each card carries a `**Next:**` line holding the literal next dispatch, so a fresh session executes
+an instruction instead of reconstructing a plan. See `docs/evidence.md` for the arithmetic that
+makes this worth the discipline.
+
+## Herdr runtime
+
+Agents run as visible, persistent Herdr tabs rather than ephemeral native subagents. Herdr is the
+only runtime; there is no tmux adapter or generic backend layer.
+
+```bash
+scripts/session-start.sh
+scripts/agent-spawn.sh 260828-1200-001-example
+scripts/agent-list.sh
+scripts/agent-state.sh 260828-1200-001-example
+scripts/agent-peek.sh 260828-1200-001-example 80
+scripts/agent-send.sh 260828-1200-001-example "Address the review finding in src/example.ts"
+scripts/agent-attach.sh 260828-1200-001-example
+scripts/agent-stop.sh 260828-1200-001-example
+```
+
+Projects are central clones under `projects/<project>`. Each task card declares `Project` and `Owner`;
+the runtime creates one `.harness-worktrees/<project>/<task-id>` worktree from that clone and one
+Herdr tab per task. Claude reads the project's own `CLAUDE.md`/`AGENTS.md` from the worktree while the
+central `RULES.md` and `agents/<owner>.md` are supplied as its role prompt. Exact Herdr and worktree
+identities are stored locally in `.harness-state/<task-id>.meta`; both directories
+are gitignored. `agent-stop.sh` closes only the recorded Herdr tab and deliberately preserves the
+worktree. See [`docs/herdr-runtime.md`](docs/herdr-runtime.md) for the command and safety contract.
+
+Context and spend scripts remain useful diagnostics, but no token threshold forces a handoff or
+`/clear`. `handoff.sh` is now only an explicit transfer to another orchestrator session.
 
 ## Three things to watch when you adopt it
 

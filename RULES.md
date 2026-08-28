@@ -22,11 +22,15 @@ from a session that is already leading. **Reasoning and measurements: `docs/deci
 - **Who does what.** `Explore` — locate code and prior art, read-only. `Plan` — architecture questions
   where a decision is genuinely open. `engineer` (sonnet, one instance per stack) — implementation in
   `{{APP_PATH}}`; it may never add or redefine a shared design-system value or any other project-wide
-  primitive (project-wide blast radius: it stops and asks). Runs with `isolation: "worktree"`, branches
-  off `{{BASE_BRANCH}}`, goes through to an open PR. `reviewer` (opus, one per stack) — the logic tier.
+  primitive (project-wide blast radius: it stops and asks). Launch it with
+  `scripts/agent-spawn.sh <task-id>`; that command reads `Project` and `Owner` from the task card,
+  then creates its isolated worktree
+  and Herdr tab. It branches off the current approved base and goes through to an open PR. `reviewer`
+  (opus, one per stack) — the logic tier.
   `mechanical-reviewer` (sonnet) — the mechanical tier. `design-qa` (sonnet) — the visual tier, own
   bullet below. `general-purpose` (opus) — shared libs, config, migrations, nothing a stack agent owns;
-  no definition file, so pass `model` on the dispatch. `deputy` (sonnet) — the lead's hands: searches,
+  like every Herdr-launched specialist it requires a matching central role file before dispatch.
+  `deputy` (sonnet) — the lead's hands: searches,
   specified multi-file edits, script runs and debugging, structural verification. It decides nothing
   and returns 15 lines, so its tool traffic never enters the lead's context. `fork` — a sub-question
   already in the lead's context.
@@ -36,6 +40,10 @@ from a session that is already leading. **Reasoning and measurements: `docs/deci
   invariants in every brief** — what an agent cannot infer from the diff: the testing discipline for
   behaviour changes, the module boundaries, where validation and shared types come from, and the
   domain semantics rules where they apply.
+- **Herdr is the execution surface.** Do not dispatch implementation or review work through an
+  ephemeral native subagent tool. Use `agent-spawn.sh`; observe with `agent-state.sh` and
+  `agent-peek.sh`; steer with `agent-send.sh`; stop with `agent-stop.sh`. `session-start.sh` is the
+  read-only recovery view at the beginning of a lead session.
 - **Model tier follows how many decisions are left in the task after briefing, not the task's topic.**
   An implementer may be wrong about how well it did the work — never about what the work is. A brief
   that still says "find out X, then choose A or B" is a planning task in implementation clothes:
@@ -113,19 +121,17 @@ Every agent reads this; only the session that is leading acts on it. Measurement
   session**; the next one is pointed at the index and one card, never re-briefed.
 - **Checkpoint when an agent's report arrives, not at the end of the day** — update the card (status,
   findings, `**Next:**`) BEFORE dispatching the next agent, with `scripts/checkpoint.sh`, which fails
-  while the card is stale. The card write is part of receiving a report. Usage limits and dead runs
-  happen mid-task, and this is what bounds the loss to one agent run instead of a session. Hand off
+  while the card is stale. The card write is part of receiving a report. Dead runs and interrupted
+  sessions happen mid-task, and this is what bounds the loss to one agent run instead of a session.
+  Hand off voluntarily
   with `scripts/handoff.sh <task>`: it checks that the card changed, that it carries a `**Next:**`
   line, that `OVERVIEW.md` has today's entry, and where the round ledger stands, then prints the
   prompt to open the next session with.
 - **Every card carries a `**Next:**` line — the literal next dispatch or command**, executable by the
   next session without deriving it. "Continue T07" is not a next action.
-- **A usage limit is a handoff signal, not a pause.** Never resume the same conversation after one:
-  resuming from a card is O(1), resuming a conversation pays its whole baseline on every remaining
-  turn. Write the card, clear the context, paste the handoff prompt.
-- **400k cache-read per lead message is a stop, not a report.** Run `scripts/agent-spend.sh
-  [YYYY-MM-DD] [project]` at each card checkpoint, not once a day: past ~400k it prints `HANDOFF`, and
-  the lead's remaining job is the card, the `OVERVIEW.md` entry, and stop.
+- **Context size is diagnostic, not control flow.** `scripts/context-size.sh` and
+  `scripts/agent-spend.sh` expose the cost of a long lead session, but no token threshold forces a
+  handoff or context reset. Durable cards and Herdr runtime state make interruption recoverable.
 - **Dispatch independent agents in ONE message.** Each dispatch/return pair is two lead turns, and
   every lead turn pays the full context re-read; three independent tasks sent one at a time buy
   nothing and cost four extra turns.
@@ -139,7 +145,7 @@ plan in an agent's memory store: it is invisible to every other session and goes
 
 - **`plan/` — what we intend.** `plan/INDEX.md` is one line per task (id, status, owner, dependency,
   note); each task gets its own card from `plan/TEMPLATE.md`, which fixes the header line
-  (`Status` / `Owner` / `Depends on` / `PR` / **`Next`** / **`Owns`**) that `checkpoint.sh`,
+  (`Status` / `Owner` / `Project` / `Depends on` / `PR` / **`Next`** / **`Owns`**) that `checkpoint.sh`,
   `handoff.sh`, `review-rounds.sh` and `owns-check.sh` all read — with goal, scope, the rationale
   behind decisions, and what "done" means. `Owns:` declares the concrete files or globs the card
   claims; `scripts/owns-check.sh` refuses when two ACTIVE cards claim the same path, catching a

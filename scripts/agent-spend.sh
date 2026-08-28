@@ -129,7 +129,4 @@ if lead and lead["msgs"]:
     print()
     print(f"lead context re-read: {per:,} tokens per message"
           f"  (${lead['read']*0.1*OPUS_IN/1e6:,.2f} of the lead's cost is re-reading itself)")
-    if per > 400_000:
-        print("HANDOFF: the lead session is long. Write the card, append to OVERVIEW.md, and end it —"
-              " a fresh session costs plan/INDEX.md plus one card.", flush=True)
 PY

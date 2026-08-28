@@ -212,9 +212,7 @@ tree_read = lead["read_total"] + sum(a["read_total"] for a in agents)
 if mode == "--statusline":
     label = model_name or short_model(lead["model"])
     flag = ""
-    if pct >= 60:
-        flag = "  ⚠ HANDOFF"
-    elif lead["own_share"] >= 35:
+    if lead["own_share"] >= 35:
         flag = "  ⚠ own file work"
     n = f" · {len(agents)} ag" if agents else ""
     print(f"{label} · ctx {lead['ctx']/1000:.0f}k ({pct:.0f}%) · tools {lead['tool_share']:.0f}%"
@@ -291,7 +289,4 @@ if lead["deleg_of_tool"] >= 40 and lead["chars"]["deleg"] > 60_000:
     print(f"Briefs and follow-ups are {lead['chars']['deleg']:,} chars of this conversation. A brief")
     print("belongs in the card's `## Brief` section — dispatch by pointing at the committed card path")
     print("and the agent reads it in ITS context, not yours.")
-if pct >= 60:
-    print()
-    print("Past 60% of the window: run scripts/handoff.sh <task>, then /clear.")
 PY

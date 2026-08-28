@@ -1,6 +1,6 @@
 # T0n — short title
 
-**Status:** open · **Owner:** {{AGENT}} · **Blocks:** — · **Depends on:** —
+**Status:** open · **Owner:** {{AGENT}} · **Project:** {{PROJECT}} · **Blocks:** — · **Depends on:** —
 PR: none yet
 **Next:** <the literal next dispatch or command — see the rules below>
 
@@ -13,6 +13,7 @@ only here.
 The header fields are parsed, not decoration:
   **Status:**  handoff.sh prints it back at you  (open · in-progress · in-review · blocked ·
                needs-decision · done)
+  **Project:** central clone directory under projects/; agent-spawn.sh resolves it mechanically
   PR:          review-rounds.sh reads it with ^\**PR\**:?\s*#(\d+) — it MUST be on its own line and
                it MUST be the digits, `PR: #18`. A PR mentioned in prose is not declared, and a
                loose match once attributed one PR's review rounds to three different tasks.
@@ -23,7 +24,7 @@ The header fields are parsed, not decoration:
 
 Rewrite **Next:** every time an agent reports back, BEFORE dispatching the next one, and run
 `scripts/checkpoint.sh <task>` — it fails while this line is missing or still says the placeholder
-above. That write is what makes a usage limit, a dead run or a /clear cost one agent run instead of a
+above. That write is what makes an interrupted session or a dead run cost one agent run instead of a
 whole session.
 -->
 

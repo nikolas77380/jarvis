@@ -90,11 +90,11 @@ if [ "$QUIET" != "--quiet" ]; then
 
   echo
   if [ "$problems" -gt 0 ]; then
-    echo "$problems thing(s) to fix before clearing. Nothing here is fatal — but a handoff that skips them"
+    echo "$problems thing(s) to fix before handing off. Nothing here is fatal — but a handoff that skips them"
     echo "hands the next session a card that lies."
     echo
   fi
-  echo "Paste this into the next session (after /clear, or in a fresh 'claude --agent orchestrator'):"
+  echo "Paste this into the receiving orchestrator session:"
   echo "---"
 fi
 
