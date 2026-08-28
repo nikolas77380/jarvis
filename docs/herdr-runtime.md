@@ -9,6 +9,9 @@ there is no backend abstraction or fallback.
 ## Commands
 
 ```text
+bin/jarvis [claude|codex]
+bin/jarvis switch claude|codex
+bin/jarvis status|stop|install-alias
 scripts/agent-spawn.sh <task-id> [--engine claude|codex]
 scripts/agent-switch.sh <task-id> claude|codex [--note <text>]
 scripts/agent-list.sh
@@ -26,9 +29,16 @@ Projects are central clones under `projects/<project>`. Runtime metadata is loca
 `.harness-state/`. A task record binds the task card, project clone, worktree, branch, role
 definition, engine, generation, unique Herdr agent name, session, workspace, tab, and pane.
 Task cards remain the durable project plan; runtime metadata records live execution identity only.
+The persistent interactive orchestrator has a separate `.harness-state/jarvis.meta` binding and
+generation history. Calling `jarvis` attaches to that binding instead of creating a duplicate.
 
 ## Behaviour
 
+- Jarvis is the human-facing entry point. It starts on the global default engine unless explicitly
+  given `claude` or `codex`, loads central rules, the orchestrator role, and the durable session
+  snapshot, then attaches the Herdr UI to its tab.
+- `jarvis switch` creates a fresh Jarvis conversation on the target engine, publishes the new
+  binding only after startup succeeds, records history, and closes the previous exact tab.
 - Spawn resolves its engine in this order: command-line override, task-card `Engine`, project
   `engine`, global `defaultEngine`, Claude fallback.
 - Spawn resolves exactly one task card, reads its `Project` and `Owner`, creates an isolated worktree

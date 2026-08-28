@@ -52,7 +52,7 @@ $BRIEF
 
 ${STATUS:-(clean)}
 
-## Captain/orchestrator note
+## Jarvis/orchestrator note
 
 ${NOTE:-(none)}
 EOF

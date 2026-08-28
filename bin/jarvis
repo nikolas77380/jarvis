@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/herdr-runtime-lib.sh
+. "$ROOT/scripts/herdr-runtime-lib.sh"
+# shellcheck source=scripts/harness-state-lib.sh
+. "$ROOT/scripts/harness-state-lib.sh"
+# shellcheck source=scripts/jarvis-runtime-lib.sh
+. "$ROOT/scripts/jarvis-runtime-lib.sh"
+
+usage() { echo 'usage: jarvis [claude|codex|attach|status|stop|switch claude|codex|install-alias]'; }
+require_tools
+COMMAND=${1:-start}
+META=$(jarvis_meta)
+
+jarvis_live() {
+  [ -f "$META" ] && [ ! -L "$META" ] && [ "$(meta_get "$META" schema)" = harness-jarvis.v1 ] \
+    && [ "$(meta_get "$META" stopped)" != 1 ] \
+    && [ "$(agent_status "$(meta_get "$META" agent_name)" "$(meta_get "$META" session)")" != unknown ]
+}
+
+case "$COMMAND" in
+  start|claude|codex)
+    [ "$#" -le 1 ] || { usage >&2; exit 2; }
+    if jarvis_live; then
+      if [ "$COMMAND" != start ] && [ "$(meta_get "$META" engine)" != "$COMMAND" ]; then
+        die "Jarvis is already running on $(meta_get "$META" engine); use: jarvis switch $COMMAND"
+      fi
+      jarvis_attach "$META"
+      exit
+    fi
+    state_lock_acquire jarvis
+    if jarvis_live; then state_lock_release; jarvis_attach "$META"; exit; fi
+    ENGINE=$COMMAND; [ "$ENGINE" != start ] || ENGINE=$(jarvis_default_engine)
+    LAUNCH=$(jarvis_launch "$ENGINE" 1) || die "could not start Jarvis on $ENGINE"
+    jarvis_publish "$LAUNCH"
+    state_lock_release
+    jarvis_attach "$META"
+    ;;
+  attach)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    jarvis_live || die 'Jarvis is not running; use: jarvis'
+    jarvis_attach "$META"
+    ;;
+  status)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    if [ ! -f "$META" ]; then echo 'Jarvis: not started'; exit; fi
+    if [ "$(meta_get "$META" stopped)" = 1 ]; then STATE=stopped; else STATE=$(agent_status "$(meta_get "$META" agent_name)" "$(meta_get "$META" session)"); fi
+    printf 'Jarvis: %s · engine=%s · generation=%s\n' "$STATE" "$(meta_get "$META" engine)" "$(meta_get "$META" generation)"
+    ;;
+  switch)
+    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+    TARGET=$2; jarvis_engine_valid "$TARGET" || die "engine must be claude or codex, got: $TARGET"
+    state_lock_acquire jarvis
+    jarvis_live || die 'Jarvis is not running; use: jarvis'
+    CURRENT=$(meta_get "$META" engine); [ "$CURRENT" != "$TARGET" ] || die "Jarvis already uses engine=$TARGET"
+    STATE=$(agent_status "$(meta_get "$META" agent_name)" "$(meta_get "$META" session)")
+    case "$STATE" in idle|done|blocked) ;; *) die "switch requires idle, done, or blocked; observed: $STATE" ;; esac
+    GENERATION=$(( $(meta_get "$META" generation) + 1 ))
+    OLD_TAB=$(meta_get "$META" tab); OLD_SESSION=$(meta_get "$META" session)
+    LAUNCH=$(jarvis_launch "$TARGET" "$GENERATION") || die "could not start Jarvis on $TARGET; old Jarvis preserved"
+    jarvis_publish "$LAUNCH"
+    HISTORY="$HARNESS_STATE/jarvis-history.jsonl"
+    jq -nc --arg from "$CURRENT" --arg to "$TARGET" --argjson generation "$GENERATION" --arg at "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+      '{schema:"harness-jarvis-switch.v1",from:$from,to:$to,generation:$generation,switchedAt:$at}' >> "$HISTORY"
+    herdr --session "$OLD_SESSION" tab close "$OLD_TAB" >/dev/null 2>&1 || true
+    state_lock_release
+    jarvis_attach "$META"
+    ;;
+  stop)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    state_lock_acquire jarvis
+    [ -f "$META" ] || die 'Jarvis is not started'
+    [ "$(meta_get "$META" stopped)" = 1 ] || herdr --session "$(meta_get "$META" session)" tab close "$(meta_get "$META" tab)" >/dev/null
+    TMP_META=$(mktemp "$HARNESS_STATE/.jarvis-meta.XXXXXX")
+    awk -F= '$1=="stopped" {print "stopped=1"; next} {print}' "$META" > "$TMP_META"
+    chmod 600 "$TMP_META"; mv "$TMP_META" "$META"
+    state_lock_release
+    ;;
+  install-alias)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    ZSHRC_PATH="${ZDOTDIR:-$HOME}/.zshrc"
+    ALIAS_LINE="alias jarvis='$ROOT/bin/jarvis'"
+    if [ -f "$ZSHRC_PATH" ] && grep -Fqx "$ALIAS_LINE" "$ZSHRC_PATH"; then
+      echo "alias already installed: $ZSHRC_PATH"
+    else
+      printf '\n%s\n' "$ALIAS_LINE" >> "$ZSHRC_PATH"
+      echo "alias installed: $ZSHRC_PATH (run: source '$ZSHRC_PATH')"
+    fi
+    ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac

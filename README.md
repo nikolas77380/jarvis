@@ -126,6 +126,21 @@ makes this worth the discipline.
 Agents run as visible, persistent Herdr tabs rather than ephemeral native subagents. Herdr is the
 only runtime; there is no tmux adapter or generic backend layer.
 
+The normal entry point is the persistent interactive Jarvis orchestrator:
+
+```bash
+bin/jarvis install-alias   # once; then reload zsh
+jarvis                     # start with the configured default, or attach if already running
+jarvis claude              # explicitly start on Claude
+jarvis codex               # explicitly start on Codex
+jarvis switch codex        # move Jarvis to a fresh Codex conversation
+jarvis status
+jarvis stop
+```
+
+Talk directly to Jarvis in Herdr. Jarvis creates task cards and uses the lower-level commands below
+to delegate and observe project work; they are not the normal user interface.
+
 ```bash
 scripts/session-start.sh
 scripts/agent-spawn.sh 260828-1200-001-example
