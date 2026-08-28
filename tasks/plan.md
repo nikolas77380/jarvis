@@ -1,63 +1,44 @@
-# Harness operational reliability — specification and plan
+# Durable inbox and decisions — specification
 
 ## Objective
 
-Make task state recoverable and safe under concurrent commands, missing Herdr endpoints, partial
-Clean Slate operations, and cleanup. Every conclusion must be derivable from local durable state;
-network enrichment is outside this package.
+Persist actionable task transitions and captain decisions across sessions without a daemon or an
+LLM poller. Session start must reconstruct attention from append-only local records.
 
-## Public commands
+## Commands
 
 ```text
-scripts/harness-doctor.sh [--json]
-scripts/agent-reconcile.sh <task-id> [--repair]
-scripts/clean-slate-protocol.sh reconcile <task-id>
-scripts/clean-slate-protocol.sh retry <task-id>
-scripts/task-teardown.sh <task-id> [--execute]
-scripts/fleet-snapshot.sh [--json]
+scripts/inbox.sh list [--json]
+scripts/inbox.sh acknowledge <event-id>
+scripts/inbox.sh drain
+scripts/decisions.sh open <task-id> --key <key> --question <text>
+scripts/decisions.sh list [--json]
+scripts/decisions.sh resolve <key> --answer <text>
+scripts/events-poll.sh
 ```
 
-## Interfaces and invariants
+## Interfaces
 
-- A task-scoped portable `mkdir` lock serializes every runtime or pipeline state mutation.
-- Lock ownership records PID and process identity where the host exposes it, with PID-liveness as
-  the restricted-host fallback. A live foreign owner is never displaced.
-- Doctor is read-only and exits nonzero for malformed metadata, missing worktrees, runtime drift, or
-  pipeline drift. `--json` emits `harness-doctor.v1`.
-- Reconcile reports observed versus recorded state. `--repair` may only mark a provably missing
-  endpoint stopped; it never recreates an agent or changes Git history.
-- Clean Slate reconcile detects completed result files, existing PR identity, and CI state without
-  repeating mutations. Retry is allowed only from a failed deterministic check, publishing, or CI
-  observation; review/fixer failures require an explicit response.
-- Teardown defaults to a read-only refusal/eligibility report. `--execute` closes known Herdr tabs,
-  removes a clean worktree only when its branch is fully published or has a terminal PR outcome,
-  archives metadata, and never deletes the branch.
-- Fleet snapshot is the single local JSON projection for task, agent, worktree, branch, Clean Slate,
-  and next-action state. Human views consume this interface.
+- `.harness-state/events.jsonl` is append-only `harness-event.v1`; acknowledgements are a separate
+  append-only ledger. Event IDs are stable hashes of task, type, and observed generation.
+- `.harness-state/decisions.jsonl` is an append-only opened/resolved ledger keyed by a caller-owned
+  stable key. Reopening an unresolved key is idempotent; resolving an absent/already resolved key
+  refuses.
+- Poll compares `fleet-snapshot.v1` with the previous durable snapshot and emits only actionable
+  transitions. First observation emits actionable current states but not routine idle/working state.
+- Session start polls, then renders open decisions, unread events, and fleet. No network access and
+  no automatic repair occur.
 
-## Project structure and style
+## Testing and boundaries
 
-- Shared locking and observation helpers: `scripts/harness-state-lib.sh`.
-- Commands: `scripts/*.sh`; shell is Bash 3-compatible and uses no `eval`.
-- Tests: isolated shell integration tests with fake Herdr/GitHub adapters.
-- Documentation: `docs/operational-reliability.md`.
-
-## Testing strategy
-
-Each slice begins with a failing shell test. Tests cover live-lock refusal, stale-lock recovery,
-read-only doctor behavior, conservative reconciliation, teardown refusal/success, retry
-idempotence, and stable fleet JSON. Existing runtime and Clean Slate suites must remain green.
-
-## Boundaries
-
-- Always: atomic writes, exact recorded identities, fail closed on ambiguity, preserve branches.
-- Ask first: deleting unpushed commits, force-closing an unverified endpoint, network repair.
-- Never: merge, reset, force-push, delete a dirty worktree, infer success from terminal prose.
+Shell integration tests cover append validity, deduplication, acknowledgement without event
+rewrites, decision folding, transition deduplication, and session recovery. All writes use global
+state locks and atomic snapshot replacement. Never delete event/decision history or infer a
+decision resolution from task prose.
 
 ## Implementation order
 
-1. Portable task locks and concurrent mutation tests.
-2. Structured local observations, doctor, and conservative agent reconciliation.
-3. Clean Slate reconcile/retry.
-4. Teardown eligibility and explicit execution.
-5. Fleet snapshot, session-start integration, documentation, complete verification.
+1. Event and acknowledgement ledger.
+2. Keyed decision ledger.
+3. Fleet transition poll and automatic decision findings.
+4. Session-start presentation, documentation, full regression.
