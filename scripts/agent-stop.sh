@@ -3,8 +3,12 @@
 set -euo pipefail
 # shellcheck source=scripts/herdr-runtime-lib.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/herdr-runtime-lib.sh"
+# shellcheck source=scripts/harness-state-lib.sh
+. "$HARNESS_ROOT/scripts/harness-state-lib.sh"
 ID=${1:-}
 [ -n "$ID" ] || die "usage: agent-stop.sh <task-id>"
+valid_task_id "$ID" || die "invalid task id: $ID"
+state_lock_acquire "$ID"
 require_tools
 META=$(require_meta "$ID")
 [ "$(meta_get "$META" stopped)" != 1 ] || { echo "already stopped: $ID"; exit 0; }

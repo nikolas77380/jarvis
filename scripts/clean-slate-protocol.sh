@@ -3,6 +3,8 @@
 set -euo pipefail
 # shellcheck source=scripts/herdr-runtime-lib.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/herdr-runtime-lib.sh"
+# shellcheck source=scripts/harness-state-lib.sh
+. "$HARNESS_ROOT/scripts/harness-state-lib.sh"
 
 usage() {
   cat >&2 <<'EOF'
@@ -413,6 +415,7 @@ COMMAND=$1
 ID=$2
 shift 2
 valid_task_id "$ID" || die "invalid task id: $ID"
+state_lock_acquire "$ID"
 case "$COMMAND" in
   run) [ "$#" -eq 0 ] || usage; command_run "$ID" ;;
   status) [ "$#" -le 1 ] || usage; command_status "$ID" "${1:-}" ;;

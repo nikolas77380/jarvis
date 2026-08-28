@@ -1,9 +1,19 @@
-# Clean Slate Protocol
+# Harness operational reliability
 
-- [x] CLI and persistent state
-- [x] Strict/direct routing
-- [x] Herdr reviewer/fixer stages
-- [x] Bounded delta review
-- [x] Project check runner
-- [x] PR and CI gate
-- [x] Documentation and full verification
+- [x] Task/run locks
+  - Acceptance: live contention refuses; stale ownership is recoverable; state writes serialize.
+  - Verify: `tests/state-lock.test.sh`
+- [ ] Doctor and agent reconciliation
+  - Acceptance: drift is structured; repair is conservative and explicit.
+  - Verify: `tests/doctor-reconcile.test.sh`
+- [ ] Clean Slate reconcile and retry
+  - Acceptance: partial operations resume without duplicate agent, push, or PR.
+  - Verify: `tests/clean-slate-recovery.test.sh`
+- [ ] Safe teardown
+  - Acceptance: dry by default; dirty/unpublished work refuses; eligible worktree is removed safely.
+  - Verify: `tests/task-teardown.test.sh`
+- [ ] Fleet snapshot and session recovery view
+  - Acceptance: one stable local JSON contract drives the human view.
+  - Verify: `tests/fleet-snapshot.test.sh`
+- [ ] Documentation and full regression suite
+  - Verify: all `tests/*.test.sh` and ShellCheck pass.

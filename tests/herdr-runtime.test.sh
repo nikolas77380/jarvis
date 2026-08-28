@@ -10,6 +10,7 @@ FAKEBIN="$TMP/bin"
 mkdir -p "$REPO/scripts" "$REPO/plan" "$REPO/agents" "$REPO/projects/demo" "$FAKEBIN"
 cp "$ROOT/scripts/agent-"*.sh "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/herdr-runtime-lib.sh" "$REPO/scripts/" 2>/dev/null || true
+cp "$ROOT/scripts/harness-state-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/session-start.sh" "$REPO/scripts/" 2>/dev/null || true
 
 cat > "$FAKEBIN/herdr" <<'FAKE'

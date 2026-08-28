@@ -3,10 +3,13 @@
 set -euo pipefail
 # shellcheck source=scripts/herdr-runtime-lib.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/herdr-runtime-lib.sh"
+# shellcheck source=scripts/harness-state-lib.sh
+. "$HARNESS_ROOT/scripts/harness-state-lib.sh"
 
 ID=${1:-}
 [ "$#" -eq 1 ] || die "usage: agent-spawn.sh <task-id>"
 valid_task_id "$ID" || die "invalid task id: $ID"
+state_lock_acquire "$ID"
 require_tools
 
 CARD=$(task_card "$ID")
