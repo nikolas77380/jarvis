@@ -7,8 +7,9 @@ because a card read on its own cannot tell you it must wait for another.
 Status: `open` · `in-progress` · `in-review` · `blocked` · `needs-decision` · `done`
 Owner: which agent, `user` when the decision is theirs, `lead` for the orchestrator session.
 
-| id | task | status | owner | depends on | note |
-|---|---|---|---|---|---|
+| id                                                         | task                 | status | owner | depends on | note |
+| ---------------------------------------------------------- | -------------------- | ------ | ----- | ---------- | ---- |
+| [260831-2017-001](260831-2017-001-root-project-adapter.md) | root project adapter | open   | lead  | —          | —    |
 
 ## Ordering that is not obvious
 
