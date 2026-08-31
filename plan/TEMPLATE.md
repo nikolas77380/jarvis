@@ -8,17 +8,20 @@ PR: none yet
 
 <!--
 HOW TO USE THIS FILE
-Install it as `projects/<project>/plan/TEMPLATE.md` — INSIDE that project's own checkout, never at
-the harness root — copy it to `plan/Tnn-<slug>.md` per task, and delete this comment. Add the task's
-line to `plan/INDEX.md` in the same change; cross-task ordering lives THERE, never only here.
+Install it as `projects/<project>/plan/TEMPLATE.md` — INSIDE that project's own checkout — copy it to
+`plan/Tnn-<slug>.md` per task, and delete this comment. Add the task's line to `plan/INDEX.md` in the
+same change; cross-task ordering lives THERE, never only here.
 
-There is no shared plan/ at the harness root. Herdr creates each task's isolated worktree from
-`projects/<project>`, and that worktree only ever contains what is committed to that project's own
-repo — so the card, the claim lock under `plan/.claims/`, and the review-rounds ledger all have to
-live inside the project's checkout to stay visible across its worktrees. `task_card` in
-`scripts/herdr-runtime-lib.sh` finds a card by scanning every `projects/*/plan/` and derives the
-project from WHICH one it found the card in — there is no `**Project:**` header field to keep in
-sync by hand.
+The harness root itself is the one reserved exception: project id `jarvis` resolves to the harness
+root checkout rather than `projects/jarvis` (there is no `projects/jarvis` — that name is reserved
+and refused), so a root `plan/` — like this one — is legitimate and is the harness's own plan. Every
+other project's plan/ still lives INSIDE that project's own checkout, never at the harness root.
+Herdr creates each task's isolated worktree from that resolved checkout, and that worktree only ever
+contains what is committed to that project's own repo — so the card, the claim lock under
+`plan/.claims/`, and the review-rounds ledger all have to live inside the project's checkout to stay
+visible across its worktrees. `task_card` in `scripts/herdr-runtime-lib.sh` finds a card by scanning
+every `projects/*/plan/` plus the root `plan/`, and derives the project from WHICH one it found the
+card in via `card_project` — there is no `**Project:**` header field to keep in sync by hand.
 
 The header fields are parsed, not decoration:
   **Status:**  handoff.sh prints it back at you  (open · in-progress · in-review · blocked ·

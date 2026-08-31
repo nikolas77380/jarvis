@@ -1,10 +1,10 @@
 # 260831-2017-001 — root-project-adapter
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** transition/wake-up and QA-flow tasks · **Depends on:** —
+**Status:** in-review · **Owner:** shell-engineer · **Blocks:** transition/wake-up and QA-flow tasks · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** dispatch shell-engineer with the brief below using `scripts/agent-spawn.sh 260831-2017-001`
+**Next:** open a PR against `main` from branch `harness/260831-2017-001`, then dispatch a logic-tier reviewer with `scripts/agent-review.sh 260831-2017-001 reviewer --brief-file reports/260831-2017-001-shell-engineer.md` (round 1 of 2)
 
 <!--
 HOW TO USE THIS FILE

@@ -22,12 +22,34 @@ valid_task_id() {
   [ "${#1}" -le 96 ]
 }
 
-# Plan cards live per-project, under projects/<project>/plan/ — never in a shared plan/ at the
-# harness root. Each project brings its own plan/claims/review-rounds machinery scoped to its own
-# git repo and worktrees, so a card's location is what tells us which project it belongs to.
+# Reserved project id: the harness root checkout itself, so Jarvis can dispatch work against its own
+# runtime through the same plan/worktree/review pipeline nested projects use, without a permanent
+# self-clone under projects/. A nested projects/jarvis would physically collide with this reserved
+# id, so it is refused rather than silently misread (see card_project).
+JARVIS_ROOT_PROJECT_ID=jarvis
+
+# The one resolver for a project id's physical checkout path. Every caller that needs a project's
+# location (role/worktree resolution, plan discovery, onboarding) MUST go through this — never test
+# `[ "$project" = jarvis ]` inline, so the root case can't drift out of sync between callers.
+project_root_path() {
+  local project=$1
+  if [ "$project" = "$JARVIS_ROOT_PROJECT_ID" ]; then
+    printf '%s\n' "$HARNESS_ROOT"
+  else
+    printf '%s\n' "$HARNESS_ROOT/projects/$project"
+  fi
+}
+
+# Plan cards live per-project, under projects/<project>/plan/, plus the reserved root project's own
+# plan/ directly under the harness root (project_root_path's one exception) — never any other shared
+# plan/. Each project brings its own plan/claims/review-rounds machinery scoped to its own git repo
+# and worktrees, so a card's location is what tells us which project it belongs to.
 plan_card_matches() {
   local id=$1
-  find "$HARNESS_ROOT/projects" -mindepth 3 -maxdepth 3 -type f -path '*/plan/*' -name "$id*.md" ! -name 'TEMPLATE.md' 2>/dev/null
+  if [ -d "$HARNESS_ROOT/plan" ]; then
+    find "$HARNESS_ROOT/plan" -mindepth 1 -maxdepth 1 -type f -name "$id*.md" ! -name 'TEMPLATE.md' 2>/dev/null || true
+  fi
+  find "$HARNESS_ROOT/projects" -mindepth 3 -maxdepth 3 -type f -path '*/plan/*' -name "$id*.md" ! -name 'TEMPLATE.md' 2>/dev/null || true
 }
 
 task_card() {
@@ -41,21 +63,24 @@ task_card() {
 card_project() {
   local card=$1 rel project
   case "$card" in
+    "$HARNESS_ROOT/plan/"*) printf '%s\n' "$JARVIS_ROOT_PROJECT_ID"; return ;;
     "$HARNESS_ROOT/projects/"*) rel=${card#"$HARNESS_ROOT/projects/"} ;;
-    *) die "plan card is not under projects/<project>/plan: $card" ;;
+    *) die "plan card is not under projects/<project>/plan or the root plan/: $card" ;;
   esac
   project=${rel%%/*}
   [ -n "$project" ] && [ "$project" != "$rel" ] || die "could not derive project from card path: $card"
+  [ "$project" != "$JARVIS_ROOT_PROJECT_ID" ] \
+    || die "project id '$JARVIS_ROOT_PROJECT_ID' is reserved for the harness root — projects/$JARVIS_ROOT_PROJECT_ID collides with it: $card"
   printf '%s\n' "$project"
 }
 
 # Two different projects can both instantiate a stack-named role (e.g. nextjs-engineer) with
 # genuinely different content — different app path, different rules. A project-local role always
 # wins over the harness-shared one, so it is never possible for one project's role file to shadow
-# another's.
+# another's. For the reserved root project this collapses to the harness's own agents/ on both legs.
 role_path() {
   local project=$1 agent=$2 role
-  role="$HARNESS_ROOT/projects/$project/agents/$agent.md"
+  role="$(project_root_path "$project")/agents/$agent.md"
   [ -f "$role" ] || role="$HARNESS_ROOT/agents/$agent.md"
   printf '%s\n' "$role"
 }

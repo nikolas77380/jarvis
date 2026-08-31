@@ -7,15 +7,25 @@
 # lead had no dispatch path and fell back to editing application code directly on main instead of
 # refusing or bootstrapping first. This script is that bootstrap, run once per project.
 #
+# The reserved project id `jarvis` (see project_root_path in herdr-runtime-lib.sh) resolves to the
+# harness root checkout itself rather than a nested clone under projects/, and — unlike every other
+# project — the harness root's own plan/ can legitimately already exist (this harness dogfoods its
+# own pipeline). Root onboarding therefore ACCEPTS an existing plan/ instead of refusing, and only
+# creates whatever pieces are still missing; every other project keeps refusing outright when plan/
+# is already there, since for them that means onboarding already ran.
+#
 # Installs plan/TEMPLATE.md, plan/INDEX.md (illustrative example row stripped), OVERVIEW.md and
 # reports/README.md from templates/, then commits exactly those new paths — never anything else
 # already sitting in the project's index or working tree, however dirty (git commit --only). A
 # project can have unrelated uncommitted work; onboarding must not sweep it into this commit.
 #
 # Usage: scripts/onboard-project.sh <project>   e.g. scripts/onboard-project.sh Catch
+#                                                     scripts/onboard-project.sh jarvis
 
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/herdr-runtime-lib.sh
+. "$ROOT/scripts/herdr-runtime-lib.sh"
 
 fail() {
   echo "onboard-project: $*" >&2
@@ -26,10 +36,15 @@ PROJECT="${1:-}"
 [ -n "$PROJECT" ] || fail "usage: $(basename "$0") <project>   e.g. $(basename "$0") Catch"
 case "$PROJECT" in ''|*[!a-zA-Z0-9._-]*) fail "invalid project name: $PROJECT" ;; esac
 
-PROJECT_ROOT="$ROOT/projects/$PROJECT"
+IS_ROOT=0
+[ "$PROJECT" != "$JARVIS_ROOT_PROJECT_ID" ] || IS_ROOT=1
+
+PROJECT_ROOT=$(project_root_path "$PROJECT")
 [ -d "$PROJECT_ROOT/.git" ] || [ -f "$PROJECT_ROOT/.git" ] ||
   fail "project clone not found: $PROJECT_ROOT (git clone it under projects/ first)"
-[ ! -d "$PROJECT_ROOT/plan" ] || fail "project already has plan/: $PROJECT_ROOT/plan"
+if [ "$IS_ROOT" -eq 0 ]; then
+  [ ! -d "$PROJECT_ROOT/plan" ] || fail "project already has plan/: $PROJECT_ROOT/plan"
+fi
 
 for f in plan-task-card.md plan-INDEX.md OVERVIEW.md reports-README.md; do
   [ -f "$ROOT/templates/$f" ] || fail "template missing: templates/$f"
@@ -39,13 +54,17 @@ mkdir -p "$PROJECT_ROOT/plan" "$PROJECT_ROOT/reports"
 
 NEW_PATHS=()
 
-cp "$ROOT/templates/plan-task-card.md" "$PROJECT_ROOT/plan/TEMPLATE.md"
-NEW_PATHS+=(plan/TEMPLATE.md)
+if [ "$IS_ROOT" -eq 0 ] || [ ! -f "$PROJECT_ROOT/plan/TEMPLATE.md" ]; then
+  cp "$ROOT/templates/plan-task-card.md" "$PROJECT_ROOT/plan/TEMPLATE.md"
+  NEW_PATHS+=(plan/TEMPLATE.md)
+fi
 
 # The shipped plan-INDEX.md carries one illustrative example row (T01) — real, not a placeholder to
 # fill in. Strip it so a fresh project's INDEX.md starts with zero fake tasks.
-grep -v '^| \[T01\]' "$ROOT/templates/plan-INDEX.md" > "$PROJECT_ROOT/plan/INDEX.md"
-NEW_PATHS+=(plan/INDEX.md)
+if [ "$IS_ROOT" -eq 0 ] || [ ! -f "$PROJECT_ROOT/plan/INDEX.md" ]; then
+  grep -v '^| \[T01\]' "$ROOT/templates/plan-INDEX.md" > "$PROJECT_ROOT/plan/INDEX.md"
+  NEW_PATHS+=(plan/INDEX.md)
+fi
 
 if [ ! -f "$PROJECT_ROOT/OVERVIEW.md" ]; then
   cp "$ROOT/templates/OVERVIEW.md" "$PROJECT_ROOT/OVERVIEW.md"
@@ -55,6 +74,11 @@ fi
 if [ ! -f "$PROJECT_ROOT/reports/README.md" ]; then
   cp "$ROOT/templates/reports-README.md" "$PROJECT_ROOT/reports/README.md"
   NEW_PATHS+=(reports/README.md)
+fi
+
+if [ "${#NEW_PATHS[@]}" -eq 0 ]; then
+  printf 'onboarded: %s (already up to date, nothing new to commit)\n' "$PROJECT"
+  exit 0
 fi
 
 git -C "$PROJECT_ROOT" add -- "${NEW_PATHS[@]}"
