@@ -2,6 +2,7 @@
 name: "{{STACK}}-engineer"
 description: "Implementation work scoped to {{APP_PATH}} that should land as an open pull request. Usually invoked BY the orchestrator as a delegated task. Good fit: new features, refactors, bug fixes — anything that needs a branch + PR. Not a fit for exploratory research (use Explore/Plan) or for work whose design decision is still open."
 model: sonnet
+codex_model: gpt-5.6-sol
 effort: high
 color: blue
 memory: project

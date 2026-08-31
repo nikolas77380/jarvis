@@ -7,7 +7,7 @@ trap 'rm -rf "$TMP"' EXIT
 
 REPO="$TMP/harness"
 FAKEBIN="$TMP/bin"
-mkdir -p "$REPO/scripts" "$REPO/plan" "$REPO/agents" "$REPO/projects/demo" "$REPO/.harness-state" "$REPO/config/projects" "$FAKEBIN"
+mkdir -p "$REPO/scripts" "$REPO/agents" "$REPO/projects/demo/plan" "$REPO/.harness-state" "$REPO/config/projects" "$FAKEBIN"
 cp "$ROOT/scripts/herdr-runtime-lib.sh" "$REPO/scripts/"
 cp "$ROOT/scripts/harness-state-lib.sh" "$REPO/scripts/"
 cp "$ROOT/scripts/clean-slate-protocol.sh" "$REPO/scripts/"
@@ -48,26 +48,28 @@ git -C "$REPO/projects/demo" add README.md
 git -C "$REPO/projects/demo" commit -qm initial
 WORKTREE="$REPO/projects/demo"
 
-cat > "$REPO/plan/task-strict.md" <<'CARD'
+cat > "$REPO/projects/demo/plan/task-strict.md" <<'CARD'
 # Strict task
-**Status:** in-review · **Owner:** engineer · **Project:** demo
+**Status:** in-review · **Owner:** engineer
 **Validation:** strict
 CARD
-cat > "$REPO/plan/task-direct.md" <<'CARD'
+cat > "$REPO/projects/demo/plan/task-direct.md" <<'CARD'
 # Direct task
-**Status:** in-review · **Owner:** engineer · **Project:** demo
+**Status:** in-review · **Owner:** engineer
 **Validation:** direct
 CARD
-cat > "$REPO/plan/task-fail.md" <<'CARD'
+cat > "$REPO/projects/demo/plan/task-fail.md" <<'CARD'
 # Failing checks
-**Status:** in-review · **Owner:** engineer · **Project:** demo
+**Status:** in-review · **Owner:** engineer
 **Validation:** direct
 CARD
-cat > "$REPO/plan/task-publish.md" <<'CARD'
+cat > "$REPO/projects/demo/plan/task-publish.md" <<'CARD'
 # Publishing recovery
-**Status:** in-review · **Owner:** engineer · **Project:** demo
+**Status:** in-review · **Owner:** engineer
 **Validation:** direct
 CARD
+git -C "$REPO/projects/demo" add plan
+git -C "$REPO/projects/demo" commit -qm 'plan cards'
 cat > "$REPO/config/projects/demo.json" <<'JSON'
 {"baseBranch":"main","publish":false,"checks":[["sh","-c","printf checked"]]}
 JSON

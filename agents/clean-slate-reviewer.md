@@ -1,5 +1,6 @@
 ---
 model: opus
+codex_model: gpt-5.6-sol
 effort: high
 ---
 

@@ -29,19 +29,17 @@ jarvis_system_prompt() {
   printf '%s\n' "$destination"
 }
 
-jarvis_initial_context() {
-  if [ -x "$HARNESS_ROOT/scripts/session-start.sh" ]; then
-    "$HARNESS_ROOT/scripts/session-start.sh" 2>/dev/null || true
-  else
-    printf 'Harness root: %s\nNo task snapshot is available yet.\n' "$HARNESS_ROOT"
-  fi
-}
-
 jarvis_launch() {
-  local engine=$1 generation=$2 workspace out tab pane name system model effort context prompt
-  local -a args
-  workspace=$(workspace_ensure)
-  out=$(herdr_call tab create --workspace "$workspace" --cwd "$HARNESS_ROOT" --label "Jarvis · $engine" --no-focus) || return 1
+  local engine=$1 generation=$2 workspace out tab pane name system model effort prompt codex_env
+  local -a args tab_args
+  workspace=$(workspace_ensure) || return 1
+  tab_args=(--workspace "$workspace" --cwd "$HARNESS_ROOT" --label "Jarvis · $engine" --no-focus)
+  if [ "$engine" = codex ]; then
+    codex_env=$(codex_isolated_environment jarvis "$HARNESS_ROOT") || return 1
+    tab_args+=(--env "HOME=$(printf '%s\n' "$codex_env" | sed -n '1p')")
+    tab_args+=(--env "CODEX_HOME=$(printf '%s\n' "$codex_env" | sed -n '2p')")
+  fi
+  out=$(herdr_call tab create "${tab_args[@]}") || return 1
   tab=$(printf '%s' "$out" | jq -er '.result.tab.tab_id') || return 1
   pane=$(printf '%s' "$out" | jq -er '.result.root_pane.pane_id') || { herdr_call tab close "$tab" >/dev/null 2>&1 || true; return 1; }
   if [ "$generation" = 1 ]; then name=jarvis; else name="jarvis_g$generation"; fi
@@ -52,12 +50,12 @@ jarvis_launch() {
   case "$engine" in
     claude)
       [ -n "$model" ] || model=$(role_field "$HARNESS_ROOT/agents/orchestrator.md" model)
-      args=(--append-system-prompt-file "$system" --name Jarvis --permission-mode auto)
+      args=(--append-system-prompt-file "$system" --name Jarvis --permission-mode bypassPermissions)
       [ -z "$model" ] || args+=(--model "$model")
       [ -z "$effort" ] || args+=(--effort "$effort")
       ;;
     codex)
-      args=(--cd "$HARNESS_ROOT" --sandbox workspace-write --ask-for-approval on-request --no-alt-screen)
+      args=(--cd "$HARNESS_ROOT" --approve-for-me --no-alt-screen)
       [ -z "$model" ] || args+=(--model "$model")
       [ -z "$effort" ] || args+=(-c "model_reasoning_effort=\"$effort\"")
       ;;
@@ -66,9 +64,7 @@ jarvis_launch() {
     herdr_call tab close "$tab" >/dev/null 2>&1 || true
     return 1
   fi
-  context=$(jarvis_initial_context)
-  prompt="Jarvis is online. Reconcile this durable harness state, then greet the user briefly and wait for their request.\n\n$context"
-  [ "$engine" != codex ] || prompt="$(cat "$system")\n\n# Startup assignment\n\n$prompt"
+  prompt="Jarvis is online. Read memory/captain.md and memory/harness.md, then run scripts/session-start.sh yourself to reconcile durable harness state (open decisions, unread events, active plan cards, fleet state) - do this now if you have not already this session. Do not print the raw file or command output back to the user: read it privately, greet the user briefly, surface only what actually needs their attention (an open decision, a stalled task, nothing if none), and wait for their request."
   if ! herdr_call agent prompt "$name" "$prompt" >/dev/null; then
     herdr_call tab close "$tab" >/dev/null 2>&1 || true
     return 1

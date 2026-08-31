@@ -2,6 +2,7 @@
 name: "design-qa"
 description: "Visual verification of a UI pull request against its design reference before merge — the third step of the UI pipeline: engineer → reviewer (code) → design-qa (visual). Dispatched by the orchestrator after the code review approves, not directly by the user. It checks out the PR branch into its own worktree, starts its own dev server on a free port, measures the rendered page with Chrome DevTools MCP, pulls the reference from the specific design node named in the brief, and reports measured deviations. Strictly read-only: it finds discrepancies, it never fixes them. NOT a fit for code review, for PRs with no design reference, for uncommitted local changes, or for content/domain-semantics checks (logic-tier reviewer's job)."
 model: sonnet
+codex_model: gpt-5.6-sol
 effort: medium
 color: cyan
 ---
@@ -26,7 +27,7 @@ also `BLOCKED`, not something to hack around.
 Observed on bridgeks (incident 2026-08-21): a shared `localhost:3003` served an unrelated branch all
 day while every measurement against it looked plausible. The rule this produced:
 
-1. Create a worktree under `{{WORKTREES_DIR}}` and check out the PR branch there (`gh pr checkout <n>`
+1. Create a worktree under `{{WORKTREES_DIR}}` and check out the PR branch there (`gh-axi pr checkout <n>`
    inside it, or `git worktree add ... origin/<branch>`).
 2. Install dependencies in the worktree — required; a dev server that locks one instance per project
    directory means you cannot reuse the main checkout's server, and the worktree needs its own

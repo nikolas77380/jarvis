@@ -7,7 +7,7 @@ trap 'rm -rf "$TMP"' EXIT
 REPO="$TMP/harness"
 PROJECT="$REPO/projects/demo"
 WORKTREE="$REPO/worktrees/task-one"
-mkdir -p "$REPO/scripts" "$REPO/plan" "$REPO/.harness-state/clean-slate" "$REPO/config/projects" "$REPO/worktrees" "$PROJECT"
+mkdir -p "$REPO/scripts" "$PROJECT/plan" "$REPO/.harness-state/clean-slate" "$REPO/config/projects" "$REPO/worktrees" "$PROJECT"
 cp "$ROOT/scripts/herdr-runtime-lib.sh" "$ROOT/scripts/harness-state-lib.sh" "$ROOT/scripts/task-teardown.sh" "$REPO/scripts/"
 cp "$ROOT/scripts/harness-observe.sh" "$ROOT/scripts/fleet-snapshot.sh" "$ROOT/scripts/harness-doctor.sh" "$REPO/scripts/"
 
@@ -19,9 +19,9 @@ git -C "$PROJECT" add README.md
 git -C "$PROJECT" commit -qm initial
 git -C "$PROJECT" worktree add -q -b harness/task-one "$WORKTREE" HEAD
 
-cat > "$REPO/plan/task-one.md" <<'CARD'
+cat > "$PROJECT/plan/task-one.md" <<'CARD'
 # Task one
-**Status:** done · **Owner:** engineer · **Project:** demo
+**Status:** done · **Owner:** engineer
 CARD
 cat > "$REPO/.harness-state/task-one.meta" <<EOF
 schema=harness-herdr-task.v1

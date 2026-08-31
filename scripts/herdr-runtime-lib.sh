@@ -22,12 +22,42 @@ valid_task_id() {
   [ "${#1}" -le 96 ]
 }
 
+# Plan cards live per-project, under projects/<project>/plan/ — never in a shared plan/ at the
+# harness root. Each project brings its own plan/claims/review-rounds machinery scoped to its own
+# git repo and worktrees, so a card's location is what tells us which project it belongs to.
+plan_card_matches() {
+  local id=$1
+  find "$HARNESS_ROOT/projects" -mindepth 3 -maxdepth 3 -type f -path '*/plan/*' -name "$id*.md" ! -name 'TEMPLATE.md' 2>/dev/null
+}
+
 task_card() {
   local id=$1 card count
-  count=$(find "$HARNESS_ROOT/plan" -maxdepth 1 -type f -name "$id*.md" ! -name 'TEMPLATE.md' 2>/dev/null | wc -l | tr -d ' ')
+  count=$(plan_card_matches "$id" | wc -l | tr -d ' ')
   [ "$count" = 1 ] || die "expected exactly one plan card for $id, found $count"
-  card=$(find "$HARNESS_ROOT/plan" -maxdepth 1 -type f -name "$id*.md" ! -name 'TEMPLATE.md' -print)
+  card=$(plan_card_matches "$id")
   printf '%s\n' "$card"
+}
+
+card_project() {
+  local card=$1 rel project
+  case "$card" in
+    "$HARNESS_ROOT/projects/"*) rel=${card#"$HARNESS_ROOT/projects/"} ;;
+    *) die "plan card is not under projects/<project>/plan: $card" ;;
+  esac
+  project=${rel%%/*}
+  [ -n "$project" ] && [ "$project" != "$rel" ] || die "could not derive project from card path: $card"
+  printf '%s\n' "$project"
+}
+
+# Two different projects can both instantiate a stack-named role (e.g. nextjs-engineer) with
+# genuinely different content — different app path, different rules. A project-local role always
+# wins over the harness-shared one, so it is never possible for one project's role file to shadow
+# another's.
+role_path() {
+  local project=$1 agent=$2 role
+  role="$HARNESS_ROOT/projects/$project/agents/$agent.md"
+  [ -f "$role" ] || role="$HARNESS_ROOT/agents/$agent.md"
+  printf '%s\n' "$role"
 }
 
 task_meta() {
@@ -51,6 +81,52 @@ require_meta() {
 
 herdr_call() {
   herdr --session "$HARNESS_HERDR_SESSION" "$@"
+}
+
+# A codex-engine tab stamps its own pane with an isolated HOME/CODEX_HOME (below) that outlives the
+# agent process — running any harness command from that same pane later must not treat the isolated
+# home as real. Resolve the OS user record instead of trusting a possibly-poisoned $HOME.
+real_user_home() {
+  local home
+  if command -v dscl >/dev/null 2>&1; then
+    home=$(dscl . -read "/Users/$(id -un)" NFSHomeDirectory 2>/dev/null | awk '{print $NF}')
+  fi
+  if [ -z "${home:-}" ] && command -v getent >/dev/null 2>&1; then
+    home=$(getent passwd "$(id -un)" | cut -d: -f6)
+  fi
+  printf '%s\n' "${home:-$HOME}"
+}
+
+codex_isolated_environment() {
+  local key=$1 project_root=$2
+  local runtime_home="$HARNESS_STATE/codex-homes/$1/home" runtime_state="$HARNESS_STATE/codex-homes/$1/state"
+  local source_state auth config extra_config tmp real_home
+  real_home=$HOME
+  case "$real_home" in "$HARNESS_STATE/codex-homes/"*) real_home=$(real_user_home) ;; esac
+  source_state=${CODEX_HOME:-$real_home/.codex}
+  case "$source_state" in "$HARNESS_STATE/codex-homes/"*) source_state="$real_home/.codex" ;; esac
+  auth="$source_state/auth.json"
+  [ -f "$auth" ] || die "Codex authentication not found at $auth; run codex login first"
+  case "$real_home$project_root" in *\"*) die 'paths containing double quotes are unsupported for the isolated Codex environment' ;; esac
+  mkdir -p "$runtime_home" "$runtime_state"
+  if [ -e "$runtime_state/auth.json" ] || [ -L "$runtime_state/auth.json" ]; then
+    [ -L "$runtime_state/auth.json" ] && [ "$(readlink "$runtime_state/auth.json")" = "$auth" ] \
+      || die "unexpected Codex auth file at $runtime_state/auth.json"
+  else
+    ln -s "$auth" "$runtime_state/auth.json"
+  fi
+  config="$runtime_state/config.toml"
+  tmp=$(mktemp "$runtime_state/.config.XXXXXX")
+  printf '[features]\nplugins = false\nskill_search = false\n\n[projects."%s"]\ntrust_level = "trusted"\n\n[shell_environment_policy]\ninherit = "all"\n\n[shell_environment_policy.set]\nHOME = "%s"\n' \
+    "$project_root" "$real_home" > "$tmp"
+  extra_config="$HARNESS_ROOT/config/jarvis-codex.toml"
+  if [ "$key" = jarvis ] && [ -f "$extra_config" ]; then
+    printf '\n' >> "$tmp"
+    cat "$extra_config" >> "$tmp"
+  fi
+  chmod 600 "$tmp"
+  mv "$tmp" "$config"
+  printf '%s\n%s\n' "$runtime_home" "$runtime_state"
 }
 
 workspace_ensure() {

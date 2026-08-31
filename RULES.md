@@ -143,12 +143,14 @@ Every agent reads this; only the session that is leading acts on it. Measurement
 Three artifacts, three jobs, all in git so any agent in any folder can read them. Do NOT keep the
 plan in an agent's memory store: it is invisible to every other session and goes stale within a day.
 
-- **`plan/` — what we intend.** `plan/INDEX.md` is one line per task (id, status, owner, dependency,
-  note); each task gets its own card from `plan/TEMPLATE.md`, which fixes the header line
-  (`Status` / `Owner` / `Project` / `Depends on` / `PR` / **`Next`** / **`Owns`**) that `checkpoint.sh`,
-  `handoff.sh`, `review-rounds.sh` and `owns-check.sh` all read — with goal, scope, the rationale
-  behind decisions, and what "done" means. `Owns:` declares the concrete files or globs the card
-  claims; `scripts/owns-check.sh` refuses when two ACTIVE cards claim the same path, catching a
+- **`plan/` lives inside this project's own checkout — what we intend.** Card ids are found by
+  scanning every project's `plan/`, never a shared `plan/` at the harness root, because a project's
+  worktrees only ever contain what its own repo commits. `plan/INDEX.md` is one line per task (id,
+  status, owner, dependency, note); each task gets its own card from `plan/TEMPLATE.md`, which fixes
+  the header line (`Status` / `Owner` / `Depends on` / `PR` / **`Next`** / **`Owns`**) that
+  `checkpoint.sh`, `handoff.sh`, `review-rounds.sh` and `owns-check.sh` all read — with goal, scope,
+  the rationale behind decisions, and what "done" means. `Owns:` declares the concrete files or globs
+  the card claims; `scripts/owns-check.sh` refuses when two ACTIVE cards claim the same path, catching a
   parallel double-edit at dispatch time instead of as a merge conflict. **Read `INDEX.md` first and
   open only the cards you need.** **Cross-task ordering lives in `INDEX.md`, never only inside a
   card**: a card read on its own cannot tell you it must wait for another.

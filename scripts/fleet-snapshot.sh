@@ -14,7 +14,7 @@ for META in "${HARNESS_STATE_DIR:-$ROOT/.harness-state}"/*.meta; do
   ID=$(sed -n 's/^task=//p' "$META" | tail -1)
   [ -n "$ID" ] && printf '%s\n' "$ID" >> "$IDS"
 done
-for CARD in "$ROOT"/plan/*.md; do
+for CARD in "$ROOT"/projects/*/plan/*.md; do
   [ -f "$CARD" ] || continue
   case "$CARD" in */INDEX.md|*/TEMPLATE.md) continue ;; esac
   basename "$CARD" .md >> "$IDS"

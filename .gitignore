@@ -1,3 +1,6 @@
 .harness-state/
 .harness-worktrees/
 /projects/
+.edith/
+.pnpm-store/
+.DS_Store

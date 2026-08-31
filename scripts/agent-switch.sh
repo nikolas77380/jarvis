@@ -8,8 +8,14 @@ set -euo pipefail
 # shellcheck source=scripts/agent-engine-lib.sh
 . "$HARNESS_ROOT/scripts/agent-engine-lib.sh"
 
-ID=${1:-}; TARGET=${2:-}; shift 2 || true; NOTE=''
-if [ "$#" -gt 0 ]; then [ "$#" -eq 2 ] && [ "$1" = --note ] || die 'usage: agent-switch.sh <task-id> claude|codex [--note <text>]'; NOTE=$2; fi
+ID=${1:-}; TARGET=${2:-}; shift 2 || true; NOTE=''; RELAUNCH=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --relaunch) RELAUNCH=1; shift ;;
+    --note) [ "$#" -ge 2 ] || die 'missing value for --note'; NOTE=$2; shift 2 ;;
+    *) die 'usage: agent-switch.sh <task-id> claude|codex [--relaunch] [--note <text>]' ;;
+  esac
+done
 valid_task_id "$ID" || die "invalid task id: $ID"
 engine_valid "$TARGET" || die "engine must be claude or codex, got: $TARGET"
 state_lock_acquire "$ID"
@@ -17,10 +23,14 @@ require_tools
 META=$(require_meta "$ID")
 [ "$(meta_get "$META" stopped)" != 1 ] || die "task agent is stopped; use a relaunch flow"
 CURRENT=$(meta_get "$META" engine); CURRENT=${CURRENT:-claude}
-[ "$CURRENT" != "$TARGET" ] || die "task already uses engine=$TARGET"
+if [ "$CURRENT" = "$TARGET" ] && [ "$RELAUNCH" != 1 ]; then die "task already uses engine=$TARGET (use --relaunch to resume it in a fresh conversation)"; fi
 OLD_NAME=$(meta_get "$META" agent_name); SESSION=$(meta_get "$META" session)
 STATE=$(agent_status "$OLD_NAME" "$SESSION")
-case "$STATE" in idle|done|blocked) ;; *) die "switch requires idle, done, or blocked; observed: $STATE" ;; esac
+case "$STATE" in
+  idle|done|blocked) ;;
+  unknown) [ "$RELAUNCH" = 1 ] || die "switch requires idle, done, or blocked; observed: $STATE" ;;
+  *) die "switch requires idle, done, or blocked; observed: $STATE" ;;
+esac
 CLEAN_META="$HARNESS_STATE/clean-slate/$ID.meta"
 if [ -f "$CLEAN_META" ]; then
   case "$(meta_get "$CLEAN_META" state)" in reviewing|fixing|verifying|publishing) die "Clean Slate is mutating the task; switch refused" ;; esac
@@ -30,7 +40,8 @@ BRANCH=$(git -C "$WORKTREE" branch --show-current); HEAD=$(git -C "$WORKTREE" re
 RAW_STATUS=$(git -C "$WORKTREE" status --porcelain)
 STATUS=$(printf '%s\n' "$RAW_STATUS" | sed -n '1,80p')
 FINGERPRINT=$(printf '%s\n%s\n%s' "$BRANCH" "$HEAD" "$RAW_STATUS" | git hash-object --stdin)
-AGENT=$(meta_get "$META" agent); ROLE="$HARNESS_ROOT/agents/$AGENT.md"; [ -f "$ROLE" ] || die "role not found: $ROLE"
+AGENT=$(meta_get "$META" agent); PROJECT=$(meta_get "$META" project); ROLE=$(role_path "$PROJECT" "$AGENT")
+[ -f "$ROLE" ] || die "role definition not found for $AGENT (checked projects/$PROJECT/agents/ and agents/)"
 CARD=$(task_card "$ID"); BRIEF=$(card_brief "$CARD"); GENERATION=$(meta_get "$META" generation); GENERATION=${GENERATION:-1}; GENERATION=$((GENERATION + 1))
 HARNESS_HERDR_SESSION=$SESSION
 LAUNCH=$(engine_start "$TARGET" "$ID" "$AGENT" "$ROLE" "$WORKTREE" "$GENERATION") || die "could not start target engine=$TARGET; old agent preserved"

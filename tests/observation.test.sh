@@ -6,7 +6,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 REPO="$TMP/harness"
 FAKEBIN="$TMP/bin"
-mkdir -p "$REPO/scripts" "$REPO/plan" "$REPO/projects/demo" "$REPO/.harness-state" "$FAKEBIN"
+mkdir -p "$REPO/scripts" "$REPO/projects/demo/plan" "$REPO/.harness-state" "$FAKEBIN"
 cp "$ROOT/scripts/herdr-runtime-lib.sh" "$ROOT/scripts/harness-state-lib.sh" "$REPO/scripts/"
 cp "$ROOT/scripts/harness-observe.sh" "$ROOT/scripts/fleet-snapshot.sh" "$ROOT/scripts/harness-doctor.sh" "$ROOT/scripts/agent-reconcile.sh" "$REPO/scripts/"
 
@@ -28,14 +28,14 @@ git -C "$REPO/projects/demo" add README.md
 git -C "$REPO/projects/demo" commit -qm initial
 HEAD=$(git -C "$REPO/projects/demo" rev-parse HEAD)
 
-cat > "$REPO/plan/task-ok.md" <<'CARD'
+cat > "$REPO/projects/demo/plan/task-ok.md" <<'CARD'
 # Task
-**Status:** in-review · **Owner:** engineer · **Project:** demo
+**Status:** in-review · **Owner:** engineer
 **Validation:** strict
 CARD
-cat > "$REPO/plan/task-card-only.md" <<'CARD'
+cat > "$REPO/projects/demo/plan/task-card-only.md" <<'CARD'
 # Missing runtime
-**Status:** open · **Owner:** engineer · **Project:** demo
+**Status:** open · **Owner:** engineer
 CARD
 cat > "$REPO/.harness-state/task-ok.meta" <<EOF
 schema=harness-herdr-task.v1
@@ -60,7 +60,7 @@ if "$REPO/scripts/harness-doctor.sh" --json >/dev/null; then
   echo 'doctor accepted card without runtime' >&2
   exit 1
 fi
-rm "$REPO/plan/task-card-only.md"
+rm "$REPO/projects/demo/plan/task-card-only.md"
 "$REPO/scripts/harness-doctor.sh" --json | jq -e '.healthy and .issueCount == 0' >/dev/null
 
 sed -i.bak 's/^branch=.*/branch=wrong/' "$REPO/.harness-state/task-ok.meta"

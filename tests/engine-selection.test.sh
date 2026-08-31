@@ -21,6 +21,24 @@ printf '%s\n' '**Engine:** codex' > "$TMP/repo/plan/card.md"
   test "$(engine_resolve '' "$TMP/repo/plan/card.md" demo)" = claude
   rm "$TMP/repo/config/projects/demo.json"
   test "$(engine_resolve '' "$TMP/repo/plan/card.md" demo)" = codex
+
+  # No card/project override: a live Jarvis on a given engine wins over the static default.
+  mkdir -p "$TMP/repo/.harness-state"
+  cat > "$TMP/repo/.harness-state/jarvis.meta" <<'EOF'
+schema=harness-jarvis.v1
+engine=claude
+stopped=0
+EOF
+  test "$(engine_resolve '' "$TMP/repo/plan/card.md" demo)" = claude
+  # An explicit project override still beats the live Jarvis engine.
+  printf '%s\n' '{"engine":"codex"}' > "$TMP/repo/config/projects/demo.json"
+  test "$(engine_resolve '' "$TMP/repo/plan/card.md" demo)" = codex
+  rm "$TMP/repo/config/projects/demo.json"
+  # A stopped Jarvis is not "live" — falls through to the static default.
+  sed -i.bak 's/stopped=0/stopped=1/' "$TMP/repo/.harness-state/jarvis.meta"
+  test "$(engine_resolve '' "$TMP/repo/plan/card.md" demo)" = codex
+  rm "$TMP/repo/.harness-state/jarvis.meta" "$TMP/repo/.harness-state/jarvis.meta.bak"
+
   rm "$TMP/repo/config/harness.json"
   test "$(engine_resolve '' "$TMP/repo/plan/card.md" demo)" = claude
 )

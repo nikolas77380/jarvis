@@ -18,7 +18,7 @@ require_tools
 
 CARD=$(task_card "$ID")
 AGENT=$(card_field "$CARD" Owner)
-PROJECT=$(card_field "$CARD" Project)
+PROJECT=$(card_project "$CARD")
 ENGINE=$(engine_resolve "$EXPLICIT_ENGINE" "$CARD" "$PROJECT")
 case "$AGENT" in ''|*[!a-zA-Z0-9._-]*) die "task card has an invalid Owner: $AGENT" ;; esac
 case "$PROJECT" in ''|*[!a-zA-Z0-9._-]*) die "task card has an invalid Project: $PROJECT" ;; esac
@@ -26,8 +26,8 @@ PROJECT_ROOT="$HARNESS_ROOT/projects/$PROJECT"
 [ -d "$PROJECT_ROOT/.git" ] || [ -f "$PROJECT_ROOT/.git" ] \
   || die "project clone is unavailable: $PROJECT_ROOT"
 PROJECT_ROOT=$(cd "$PROJECT_ROOT" && pwd -P)
-ROLE="$HARNESS_ROOT/agents/$AGENT.md"
-[ -f "$ROLE" ] || die "central role definition not found: $ROLE"
+ROLE=$(role_path "$PROJECT" "$AGENT")
+[ -f "$ROLE" ] || die "role definition not found for $AGENT (checked projects/$PROJECT/agents/ and agents/)"
 META=$(task_meta "$ID")
 if [ -f "$META" ] && [ ! -L "$META" ]; then
   OLD_NAME=$(meta_get "$META" agent_name)

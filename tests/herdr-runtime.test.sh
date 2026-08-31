@@ -7,8 +7,9 @@ trap 'rm -rf "$TMP"' EXIT
 
 REPO="$TMP/repo"
 FAKEBIN="$TMP/bin"
-mkdir -p "$REPO/scripts" "$REPO/plan" "$REPO/agents" "$REPO/projects/demo" "$REPO/memory/projects" "$FAKEBIN"
+mkdir -p "$REPO/scripts" "$REPO/agents" "$REPO/projects/demo" "$REPO/memory/projects" "$FAKEBIN"
 cp "$ROOT/scripts/agent-"*.sh "$REPO/scripts/" 2>/dev/null || true
+cp "$ROOT/scripts/quota-resume-"*.sh "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/herdr-runtime-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-state-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/agent-engine-lib.sh" "$ROOT/scripts/agent-switch.sh" "$REPO/scripts/" 2>/dev/null || true
@@ -54,10 +55,19 @@ git config user.email test@example.com
 git config user.name Test
 printf '%s\n' '# Central rules' > RULES.md
 printf '%s\n' '%s' '---' 'model: sonnet' 'effort: high' '---' '# Engineer role' > agents/engineer.md
-cat > plan/260828-1200-001-demo.md <<'CARD'
+git add .
+git commit -qm initial
+
+git -C projects/demo init -q
+git -C projects/demo config user.email test@example.com
+git -C projects/demo config user.name Test
+printf '%s\n' '# Demo project' > projects/demo/README.md
+printf '%s\n' '# Demo project instructions' > projects/demo/AGENTS.md
+mkdir -p projects/demo/plan
+cat > projects/demo/plan/260828-1200-001-demo.md <<'CARD'
 # Demo
 
-**Status:** open · **Owner:** engineer · **Project:** demo · **Blocks:** — · **Depends on:** —
+**Status:** open · **Owner:** engineer · **Blocks:** — · **Depends on:** —
 **Engine:** claude
 PR: none yet
 **Next:** dispatch engineer
@@ -70,21 +80,23 @@ Implement the demo and run its checks.
 
 The checks pass.
 CARD
-git add .
-git commit -qm initial
+cat > projects/demo/plan/INDEX.md <<'INDEX'
+# Plan index
 
-git -C projects/demo init -q
-git -C projects/demo config user.email test@example.com
-git -C projects/demo config user.name Test
-printf '%s\n' '# Demo project' > projects/demo/README.md
-printf '%s\n' '# Demo project instructions' > projects/demo/AGENTS.md
-git -C projects/demo add README.md AGENTS.md
+| id | task | status | owner | depends on | note |
+|---|---|---|---|---|---|
+| [260828-1200-001-demo](260828-1200-001-demo.md) | Demo | open | engineer | — | — |
+INDEX
+git -C projects/demo add README.md AGENTS.md plan/260828-1200-001-demo.md plan/INDEX.md
 git -C projects/demo commit -qm initial
 PROJECT_REAL=$(cd projects/demo && pwd -P)
 
 export PATH="$FAKEBIN:$PATH"
 export FAKE_HERDR_LOG="$TMP/herdr.log"
 export HARNESS_HERDR_SESSION=test-harness
+export CODEX_HOME="$TMP/user-codex"
+mkdir -p "$CODEX_HOME"
+printf '%s\n' '{"test":"credentials"}' > "$CODEX_HOME/auth.json"
 
 scripts/agent-spawn.sh 260828-1200-001-demo >/dev/null
 META=.harness-state/260828-1200-001-demo.meta
@@ -120,24 +132,43 @@ FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"idle"}}}' scripts/agent-swit
 grep -qx 'engine=codex' "$META"
 grep -qx 'generation=2' "$META"
 grep -q -- 'agent start .* --kind codex ' "$FAKE_HERDR_LOG"
-grep -q -- '--sandbox workspace-write --ask-for-approval on-request --no-alt-screen' "$FAKE_HERDR_LOG"
+grep -q -- '--approve-for-me --no-alt-screen' "$FAKE_HERDR_LOG"
+if grep -q -- '--ask-for-approval on-request' "$FAKE_HERDR_LOG"; then
+  echo 'task-agent codex still requires manual approvals' >&2
+  exit 1
+fi
+grep -q -- 'tab create .* --env HOME=.*/codex-homes/h_.*home --env CODEX_HOME=.*/codex-homes/h_.*state' "$FAKE_HERDR_LOG"
 grep -q 'Continue with Codex' "$FAKE_HERDR_LOG"
 test "$(wc -l < .harness-state/agent-history/260828-1200-001-demo.jsonl | tr -d ' ')" = 1
+mkdir -p .harness-state/quota
+cat > .harness-state/quota/260828-1200-001-demo.meta <<'QUOTA'
+schema=harness-quota-resume.v1
+key=260828-1200-001-demo
+kind=task
+engine=codex
+blocked_reason=quota
+resume_at=1
+QUOTA
+FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"idle"}}}' scripts/quota-resume-poll.sh | grep -q 'quota resumed: 260828-1200-001-demo'
+grep -qx 'engine=codex' "$META"
+grep -qx 'generation=3' "$META"
+test ! -e .harness-state/quota/260828-1200-001-demo.meta
+grep -q 'Provider quota reset. Resume automatically' "$FAKE_HERDR_LOG"
 OBSERVATION=$(FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"idle"}}}' scripts/harness-observe.sh 260828-1200-001-demo)
 test "$(jq -r '.runtime.engine' <<< "$OBSERVATION")" = codex
-test "$(jq -r '.runtime.generation' <<< "$OBSERVATION")" = 2
-scripts/agent-list.sh | grep -q 'codex.*2'
+test "$(jq -r '.runtime.generation' <<< "$OBSERVATION")" = 3
+scripts/agent-list.sh | grep -q 'codex.*3'
 if FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"done"}}}' FAKE_PROMPT_FAIL=1 scripts/agent-switch.sh 260828-1200-001-demo claude >/dev/null 2>&1; then
   echo 'switch with failed target prompt unexpectedly succeeded' >&2
   exit 1
 fi
 grep -qx 'engine=codex' "$META"
-grep -qx 'generation=2' "$META"
-test "$(wc -l < .harness-state/agent-history/260828-1200-001-demo.jsonl | tr -d ' ')" = 1
-FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"done"}}}' scripts/agent-switch.sh 260828-1200-001-demo claude >/dev/null
-grep -qx 'engine=claude' "$META"
 grep -qx 'generation=3' "$META"
 test "$(wc -l < .harness-state/agent-history/260828-1200-001-demo.jsonl | tr -d ' ')" = 2
+FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"done"}}}' scripts/agent-switch.sh 260828-1200-001-demo claude >/dev/null
+grep -qx 'engine=claude' "$META"
+grep -qx 'generation=4' "$META"
+test "$(wc -l < .harness-state/agent-history/260828-1200-001-demo.jsonl | tr -d ' ')" = 3
 test "$(FAKE_AGENT_GET='{"result":{"agent":{"agent_status":"mystery"}}}' scripts/agent-state.sh 260828-1200-001-demo)" = 'state: unknown · source: herdr'
 scripts/agent-peek.sh 260828-1200-001-demo 20 | grep -q 'agent output line'
 scripts/agent-send.sh 260828-1200-001-demo 'Please continue' >/dev/null
@@ -145,8 +176,10 @@ scripts/agent-attach.sh 260828-1200-001-demo >/dev/null
 scripts/agent-list.sh | grep -q '260828-1200-001-demo'
 SESSION_OUTPUT=$(scripts/session-start.sh)
 grep -q '260828-1200-001-demo' <<< "$SESSION_OUTPUT"
+grep -q -- '-- demo --' <<< "$SESSION_OUTPUT"
 SESSION_OUTPUT=$(scripts/session-start.sh --project demo)
 grep -q 'Demo project memory' <<< "$SESSION_OUTPUT"
+grep -q '260828-1200-001-demo' <<< "$SESSION_OUTPUT"
 
 scripts/agent-stop.sh 260828-1200-001-demo >/dev/null
 grep -q ' tab close w1:t2' "$FAKE_HERDR_LOG"

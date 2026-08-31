@@ -1,6 +1,6 @@
 # T0n — short title
 
-**Status:** open · **Owner:** {{AGENT}} · **Project:** {{PROJECT}} · **Blocks:** — · **Depends on:** —
+**Status:** open · **Owner:** {{AGENT}} · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
@@ -8,14 +8,21 @@ PR: none yet
 
 <!--
 HOW TO USE THIS FILE
-Install it as `plan/TEMPLATE.md`, copy it to `plan/Tnn-<slug>.md` per task, and delete this comment.
-Add the task's line to `plan/INDEX.md` in the same change; cross-task ordering lives THERE, never
-only here.
+Install it as `projects/<project>/plan/TEMPLATE.md` — INSIDE that project's own checkout, never at
+the harness root — copy it to `plan/Tnn-<slug>.md` per task, and delete this comment. Add the task's
+line to `plan/INDEX.md` in the same change; cross-task ordering lives THERE, never only here.
+
+There is no shared plan/ at the harness root. Herdr creates each task's isolated worktree from
+`projects/<project>`, and that worktree only ever contains what is committed to that project's own
+repo — so the card, the claim lock under `plan/.claims/`, and the review-rounds ledger all have to
+live inside the project's checkout to stay visible across its worktrees. `task_card` in
+`scripts/herdr-runtime-lib.sh` finds a card by scanning every `projects/*/plan/` and derives the
+project from WHICH one it found the card in — there is no `**Project:**` header field to keep in
+sync by hand.
 
 The header fields are parsed, not decoration:
   **Status:**  handoff.sh prints it back at you  (open · in-progress · in-review · blocked ·
                needs-decision · done)
-  **Project:** central clone directory under projects/; agent-spawn.sh resolves it mechanically
   PR:          review-rounds.sh reads it with ^\**PR\**:?\s*#(\d+) — it MUST be on its own line and
                it MUST be the digits, `PR: #18`. A PR mentioned in prose is not declared, and a
                loose match once attributed one PR's review rounds to three different tasks.

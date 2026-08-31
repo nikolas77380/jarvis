@@ -34,11 +34,12 @@ scripts/review-rounds.sh       review rounds that actually RAN, vs what the card
 scripts/overview-append.sh     append to OVERVIEW.md without reading it first
 scripts/agent-spend.sh         diagnostic pipeline spend by role
 scripts/context-size.sh        context split into delegation vs own work, per agent; statusLine source
+scripts/onboard-project.sh     install plan/TEMPLATE.md, plan/INDEX.md, OVERVIEW.md, reports/README.md into a project — and COMMIT, once
 scripts/new-task.sh            mint a task id, card, INDEX row and dashboard — and COMMIT, in one step
 scripts/plan-check.sh          every card must be tracked by git and linked from plan/INDEX.md
 scripts/owns-check.sh          refuses two ACTIVE cards claiming the same file or glob
 memory/                        portable pipeline lessons for an agent's memory store, with its own README
-scripts/agent-*.sh             spawn, list, inspect, steer, focus and stop Herdr agents
+scripts/agent-*.sh             spawn, list, inspect, wait on, steer, focus and stop Herdr agents
 scripts/task-teardown.sh       archive a completed task and safely remove only its worktree
 scripts/session-start.sh       read-only plan/runtime recovery view
 scripts/clean-slate-protocol.sh bounded review, project checks, PR and CI gate
@@ -59,17 +60,7 @@ docs/evidence.md               the measurements behind every rule, and what is N
 ## Initial setup
 
 1. Install `herdr`, `jq`, `git`, and Claude Code. Start the orchestrator from a Herdr-managed pane.
-2. Create the central durable artifacts once:
-
-   ```bash
-   mkdir -p plan reports docs/overview-archive projects
-   cp templates/plan-INDEX.md plan/INDEX.md
-   cp templates/plan-task-card.md plan/TEMPLATE.md
-   cp templates/OVERVIEW.md OVERVIEW.md
-   cp templates/reports-README.md reports/README.md
-   ```
-
-3. Clone each managed project under its stable central name:
+2. Clone each managed project under its stable central name:
 
    ```bash
    git clone <origin> projects/bridgeks
@@ -78,10 +69,23 @@ docs/evidence.md               the measurements behind every rule, and what is N
 
    Each clone owns its project-specific `CLAUDE.md` or `AGENTS.md`. Do not copy the central harness
    scripts or memory into it.
+3. Onboard each project into the plan pipeline — **inside its own clone**, never at the harness
+   root; there is no shared `plan/` at the top level, because `scripts/herdr-runtime-lib.sh` resolves
+   a task card by scanning every `projects/*/plan/`, and each project's own worktrees only ever
+   contain what its own repo commits:
+
+   ```bash
+   scripts/onboard-project.sh bridgeks
+   ```
+
+   This installs `plan/TEMPLATE.md`, `plan/INDEX.md`, `OVERVIEW.md` and `reports/README.md` from
+   `templates/` into `projects/bridgeks/` and commits them in one step. The lead does this itself,
+   automatically, the first time it is asked to work on a project with no `plan/` yet — see
+   `agents/orchestrator.md`.
 4. Instantiate central roles in `agents/`. For example, copy `engineer.md` to `web-engineer.md` and
    fill its placeholders. The task card's `Owner` must equal the role filename without `.md`.
-5. Mint cards with `scripts/new-task.sh <slug>`, fill `Project`, `Owner`, brief and checks, then run
-   `scripts/agent-spawn.sh <task-id>`.
+5. Mint cards with `scripts/new-task.sh <slug>` run from inside the project's own clone, fill `Owner`,
+   brief and checks, then run `scripts/agent-spawn.sh <task-id>` from the harness root.
 
 ### Placeholders
 
@@ -148,6 +152,9 @@ scripts/agent-spawn.sh 260828-1200-001-example --engine codex
 scripts/agent-switch.sh 260828-1200-001-example codex --note "Continue from the current Git state"
 scripts/agent-list.sh
 scripts/agent-state.sh 260828-1200-001-example
+scripts/agent-wait.sh 260828-1200-001-example     # run in the background right after spawn/switch
+scripts/quota-resume-poll.sh                       # external recovery pass, including Jarvis
+scripts/quota-resume-watch.sh                      # foreground process for the external supervisor
 scripts/agent-peek.sh 260828-1200-001-example 80
 scripts/agent-send.sh 260828-1200-001-example "Address the review finding in src/example.ts"
 scripts/agent-attach.sh 260828-1200-001-example
@@ -166,6 +173,14 @@ worktree. See [`docs/herdr-runtime.md`](docs/herdr-runtime.md) for the command a
 
 Context and spend scripts remain useful diagnostics, but no token threshold forces a handoff or
 `/clear`. `handoff.sh` is now only an explicit transfer to another orchestrator session.
+
+`agent-wait.sh` recognizes provider quota messages, persists `blocked_reason=quota` plus the reset
+deadline under `.harness-state/quota/`, waits for that deadline, relaunches the same engine in a
+fresh conversation over the preserved branch/worktree, and waits again. `events-poll.sh` also runs
+`quota-resume-poll.sh`, which recovers a due task or Jarvis deadline if the original wait process did
+not survive. Run `quota-resume-watch.sh` under the harness's tracked process manager so that recovery
+continues while Jarvis itself is unavailable. Jarvis relaunches on its current engine with
+`jarvis relaunch`.
 
 ## Clean Slate validation
 

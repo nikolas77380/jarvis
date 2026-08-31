@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/jarvis-runtime-lib.sh
 . "$ROOT/scripts/jarvis-runtime-lib.sh"
 
-usage() { echo 'usage: jarvis [claude|codex|attach|status|stop|switch claude|codex|install-alias]'; }
+usage() { echo 'usage: jarvis [claude|codex|attach|status|stop|switch claude|codex|relaunch|install-alias]'; }
 require_tools
 COMMAND=${1:-start}
 META=$(jarvis_meta)
@@ -48,21 +48,38 @@ case "$COMMAND" in
     if [ "$(meta_get "$META" stopped)" = 1 ]; then STATE=stopped; else STATE=$(agent_status "$(meta_get "$META" agent_name)" "$(meta_get "$META" session)"); fi
     printf 'Jarvis: %s · engine=%s · generation=%s\n' "$STATE" "$(meta_get "$META" engine)" "$(meta_get "$META" generation)"
     ;;
-  switch)
-    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
-    TARGET=$2; jarvis_engine_valid "$TARGET" || die "engine must be claude or codex, got: $TARGET"
+  switch|relaunch)
+    if [ "$COMMAND" = switch ]; then
+      [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+      TARGET=$2; jarvis_engine_valid "$TARGET" || die "engine must be claude or codex, got: $TARGET"
+    else
+      [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+      [ -f "$META" ] || die 'Jarvis is not running; use: jarvis'
+      TARGET=$(meta_get "$META" engine)
+    fi
     state_lock_acquire jarvis
-    jarvis_live || die 'Jarvis is not running; use: jarvis'
-    CURRENT=$(meta_get "$META" engine); [ "$CURRENT" != "$TARGET" ] || die "Jarvis already uses engine=$TARGET"
+    if [ "$COMMAND" = switch ]; then
+      jarvis_live || die 'Jarvis is not running; use: jarvis'
+    else
+      [ -f "$META" ] && [ ! -L "$META" ] && [ "$(meta_get "$META" schema)" = harness-jarvis.v1 ] \
+        && [ "$(meta_get "$META" stopped)" != 1 ] || die 'Jarvis has no resumable binding; use: jarvis'
+    fi
+    CURRENT=$(meta_get "$META" engine)
+    if [ "$COMMAND" = switch ] && [ "$CURRENT" = "$TARGET" ]; then die "Jarvis already uses engine=$TARGET"; fi
     STATE=$(agent_status "$(meta_get "$META" agent_name)" "$(meta_get "$META" session)")
-    case "$STATE" in idle|done|blocked) ;; *) die "switch requires idle, done, or blocked; observed: $STATE" ;; esac
+    case "$STATE" in
+      idle|done|blocked) ;;
+      unknown) [ "$COMMAND" = relaunch ] || die "switch requires idle, done, or blocked; observed: $STATE" ;;
+      *) die "switch requires idle, done, or blocked; observed: $STATE" ;;
+    esac
+    HARNESS_HERDR_SESSION=$(meta_get "$META" session)
     GENERATION=$(( $(meta_get "$META" generation) + 1 ))
     OLD_TAB=$(meta_get "$META" tab); OLD_SESSION=$(meta_get "$META" session)
     LAUNCH=$(jarvis_launch "$TARGET" "$GENERATION") || die "could not start Jarvis on $TARGET; old Jarvis preserved"
     jarvis_publish "$LAUNCH"
     HISTORY="$HARNESS_STATE/jarvis-history.jsonl"
-    jq -nc --arg from "$CURRENT" --arg to "$TARGET" --argjson generation "$GENERATION" --arg at "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-      '{schema:"harness-jarvis-switch.v1",from:$from,to:$to,generation:$generation,switchedAt:$at}' >> "$HISTORY"
+    jq -nc --arg from "$CURRENT" --arg to "$TARGET" --arg action "$COMMAND" --argjson generation "$GENERATION" --arg at "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+      '{schema:"harness-jarvis-switch.v1",action:$action,from:$from,to:$to,generation:$generation,switchedAt:$at}' >> "$HISTORY"
     herdr --session "$OLD_SESSION" tab close "$OLD_TAB" >/dev/null 2>&1 || true
     state_lock_release
     jarvis_attach "$META"

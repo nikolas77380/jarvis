@@ -4,12 +4,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/scripts" "$TMP/state/clean-slate" "$TMP/run"
-cp "$ROOT/scripts/herdr-runtime-lib.sh" "$ROOT/scripts/harness-state-lib.sh" "$ROOT/scripts/harness-event-lib.sh" "$ROOT/scripts/inbox.sh" "$ROOT/scripts/decisions.sh" "$ROOT/scripts/events-poll.sh" "$TMP/scripts/"
+cp "$ROOT/scripts/herdr-runtime-lib.sh" "$ROOT/scripts/harness-state-lib.sh" "$ROOT/scripts/harness-event-lib.sh" "$ROOT/scripts/inbox.sh" "$ROOT/scripts/decisions.sh" "$ROOT/scripts/events-poll.sh" "$ROOT/scripts/quota-resume-lib.sh" "$ROOT/scripts/quota-resume-poll.sh" "$TMP/scripts/"
 cat > "$TMP/scripts/fleet-snapshot.sh" <<'FAKE'
 #!/usr/bin/env bash
 cat "${FAKE_SNAPSHOT:?}"
 FAKE
-chmod +x "$TMP/scripts/fleet-snapshot.sh"
+chmod +x "$TMP/scripts/fleet-snapshot.sh" "$TMP/scripts/quota-resume-poll.sh"
 cat > "$TMP/snapshot-1.json" <<'JSON'
 {"schema":"harness-fleet-snapshot.v1","tasks":[
  {"task":"a","runtime":{"observed":"working"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}},
@@ -45,5 +45,17 @@ JSON
 FAKE_SNAPSHOT="$TMP/snapshot-2.json" "$TMP/scripts/events-poll.sh" >/dev/null
 test "$(wc -l < "$TMP/state/events.jsonl" | tr -d ' ')" = 5
 "$TMP/scripts/inbox.sh" list --json | jq -e '[.[].type] | index("agent-done") and index("agent-missing") and index("ci-ready")' >/dev/null
+
+cat > "$TMP/snapshot-3.json" <<'JSON'
+{"schema":"harness-fleet-snapshot.v1","tasks":[
+ {"task":"a","runtime":{"observed":"done"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}},
+ {"task":"b","runtime":{"observed":"missing"},"worktree":{"head":"h2"},"cleanSlate":{"state":"none"}},
+ {"task":"c","runtime":{"observed":"idle"},"worktree":{"head":"h3"},"cleanSlate":{"state":"ready"}},
+ {"task":"d","runtime":{"observed":"missing"},"worktree":{"head":"none"},"cleanSlate":{"state":"none"}}
+]}
+JSON
+FAKE_SNAPSHOT="$TMP/snapshot-3.json" "$TMP/scripts/events-poll.sh" >/dev/null
+test "$(wc -l < "$TMP/state/events.jsonl" | tr -d ' ')" = 5
+"$TMP/scripts/inbox.sh" list --json | jq -e '[.[] | select(.task=="d")] | length == 0' >/dev/null
 
 echo 'events poll tests: ok'

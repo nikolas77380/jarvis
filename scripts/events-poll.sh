@@ -9,6 +9,7 @@ set -euo pipefail
 . "$HARNESS_ROOT/scripts/harness-event-lib.sh"
 
 [ "$#" -eq 0 ] || die 'usage: events-poll.sh'
+"$HARNESS_ROOT/scripts/quota-resume-poll.sh"
 CURRENT=$("$HARNESS_ROOT/scripts/fleet-snapshot.sh" --json)
 printf '%s' "$CURRENT" | jq -e '.schema == "harness-fleet-snapshot.v1" and (.tasks|type=="array")' >/dev/null || die 'invalid fleet snapshot'
 SNAPSHOT="$HARNESS_STATE/fleet-previous.json"
@@ -27,7 +28,7 @@ printf '%s' "$CURRENT" | jq -c '.tasks[]' | while IFS= read -r TASK_JSON; do
     case "$RUNTIME" in
       done) event_emit "$TASK" agent-done "$RUNTIME-$HEAD" 'Agent completed' >/dev/null ;;
       blocked) event_emit "$TASK" agent-blocked "$RUNTIME-$HEAD" 'Agent is blocked' >/dev/null ;;
-      missing) event_emit "$TASK" agent-missing "$RUNTIME-$HEAD" 'Recorded Herdr agent is missing' >/dev/null ;;
+      missing) [ -z "$OLD_RUNTIME" ] || event_emit "$TASK" agent-missing "$RUNTIME-$HEAD" 'Recorded Herdr agent is missing' >/dev/null ;;
       archived) event_emit "$TASK" task-archived "$RUNTIME-$HEAD" 'Task worktree was archived' >/dev/null ;;
     esac
   fi

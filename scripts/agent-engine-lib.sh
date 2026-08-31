@@ -53,6 +53,24 @@ claude_trust_worktree() {
   fi
 }
 
+# Even with claude_trust_worktree's hasTrustDialogAccepted flag set and --permission-mode
+# bypassPermissions passed, Claude Code (observed on v2.1.251) still shows a combined
+# "Accessing workspace ... quick safety check" + "this folder pre-approves N tool permissions in
+# .claude/settings.json" dialog on a pane's first startup, reported by Herdr as agent_status
+# "blocked" (confirmed by reading the pane directly: reproduced in the already-trusted main
+# checkout of a project, not just a fresh worktree, so it is unconditional on this Claude Code
+# version, not specific to first-time paths). Cursor defaults to "No, exit"; one down arrow plus
+# enter selects "Yes, I trust this folder". Every path engine_start launches into is a
+# harness-managed clone or a harness-created worktree off one — the same trust decision
+# claude_trust_worktree already makes unconditionally, just for the dialog that flag doesn't
+# suppress.
+claude_accept_startup_trust_dialog() {
+  local name=$1
+  herdr_call agent send-keys "$name" down enter >/dev/null 2>&1 || return 1
+  herdr_call agent wait "$name" --timeout 15000 >/dev/null 2>&1
+  [ "$(agent_status "$name")" = idle ]
+}
+
 engine_start() {
   local engine=$1 task=$2 role_name=$3 role=$4 worktree=$5 generation=$6 workspace out tab pane name system model effort codex_env
   local -a args tab_args
@@ -103,7 +121,10 @@ engine_start() {
   esac
   [ "$engine" != claude ] || claude_trust_worktree "$worktree"
   if ! herdr_call agent start "$name" --kind "$engine" --pane "$pane" -- "${args[@]}" >/dev/null; then
-    herdr_call tab close "$tab" >/dev/null 2>&1 || true; return 1
+    if [ "$engine" != claude ] || [ "$(agent_status "$name")" != blocked ] \
+      || ! claude_accept_startup_trust_dialog "$name"; then
+      herdr_call tab close "$tab" >/dev/null 2>&1 || true; return 1
+    fi
   fi
   jq -nc --arg engine "$engine" --arg name "$name" --arg workspace "$workspace" --arg tab "$tab" --arg pane "$pane" --arg system "$system" \
     '{engine:$engine,name:$name,workspace:$workspace,tab:$tab,pane:$pane,system:$system}'

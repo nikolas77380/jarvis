@@ -2,6 +2,7 @@
 name: "mechanical-reviewer"
 description: "Review a PR whose changes are MECHANICAL — no branch of logic changes: tests/stories/docs/config, renames, formatting, dependency bumps, comment and copy edits. NOT a fit for anything that changes what the code decides; that goes to the logic-tier reviewer. When in doubt, do not use this agent."
 model: sonnet
+codex_model: gpt-5.6-sol
 effort: medium
 color: green
 ---
@@ -16,7 +17,7 @@ valuable output is an escalation, not an approval.**
 
 ## Keep your context small — that is half your purpose
 
-- Start with `gh pr view <n>` and `gh pr diff <n>`. The diff is your primary evidence.
+- Start with `gh-axi pr view <n>` and `gh-axi pr diff <n>`. The diff is your primary evidence.
 - Open a full file only when a hunk is unreadable without it, and then that one file.
 - Do NOT load skills, do NOT explore the repo, do NOT read the rules file end to end — read only the
   section a specific question needs.

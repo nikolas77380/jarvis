@@ -11,7 +11,7 @@ command -v jq >/dev/null || die "jq is required"
 
 META=$(task_meta "$ID")
 ARCHIVE_META="$HARNESS_STATE/archive/$ID/runtime.original.meta"
-CARD_COUNT=$(find "$HARNESS_ROOT/plan" -maxdepth 1 -type f -name "$ID*.md" ! -name TEMPLATE.md 2>/dev/null | wc -l | tr -d ' ')
+CARD_COUNT=$(plan_card_matches "$ID" | wc -l | tr -d ' ')
 CARD_EXISTS=false
 [ "$CARD_COUNT" = 1 ] && CARD_EXISTS=true
 ISSUES_FILE=$(mktemp)
@@ -87,4 +87,4 @@ jq -n --arg schema harness-task-observation.v1 --arg task "$ID" --arg project "$
   --arg recordedBranch "$RECORDED_BRANCH" --arg branch "$ACTUAL_BRANCH" --arg head "$HEAD" \
   --arg cleanState "$CLEAN_STATE" --argjson cardExists "$CARD_EXISTS" --argjson metadataValid "$META_VALID" \
   --argjson clean "$CLEAN" --argjson issues "$ISSUES" \
-  '{schema:$schema,task:$task,project:$project,agent:$agent,card:{exists:$cardExists},runtime:{metadataValid:$metadataValid,engine:$engine,generation:($generation|tonumber?),observed:$observed},worktree:{path:$worktree,exists:($worktree != "" and $head != ""),clean:$clean,recordedBranch:$recordedBranch,branch:$branch,head:$head},cleanSlate:{state:$cleanState},issues:$issues,consistent:($issues|length==0),nextAction:(if ($issues|length)>0 then "inspect" elif $observed=="working" then "wait" elif $observed=="archived" then "none" else "continue" end)}'
+  '{schema:$schema,task:$task,project:$project,agent:$agent,card:{exists:$cardExists},runtime:{metadataValid:$metadataValid,engine:$engine,generation:(if $generation == "" then null else ($generation|tonumber) end),observed:$observed},worktree:{path:$worktree,exists:($worktree != "" and $head != ""),clean:$clean,recordedBranch:$recordedBranch,branch:$branch,head:$head},cleanSlate:{state:$cleanState},issues:$issues,consistent:($issues|length==0),nextAction:(if ($issues|length)>0 then "inspect" elif $observed=="working" then "wait" elif $observed=="archived" then "none" else "continue" end)}'
