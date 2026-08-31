@@ -3,8 +3,8 @@
 **Status:** in-review · **Owner:** shell-engineer · **Blocks:** transition/wake-up and QA-flow tasks · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
-PR: none yet
-**Next:** open a PR against `main` from branch `harness/260831-2017-001`, then dispatch a logic-tier reviewer with `scripts/agent-review.sh 260831-2017-001 reviewer --brief-file reports/260831-2017-001-shell-engineer.md` (round 1 of 2)
+PR: #2
+**Next:** run `scripts/review-rounds.sh 260831-2017-001`, then dispatch a logic-tier reviewer with `scripts/agent-review.sh 260831-2017-001 reviewer --brief-file reports/260831-2017-001-shell-engineer.md` against PR #2 (round 1 of 2)
 
 <!--
 HOW TO USE THIS FILE
