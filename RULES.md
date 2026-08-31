@@ -44,6 +44,15 @@ from a session that is already leading. **Reasoning and measurements: `docs/deci
   ephemeral native subagent tool. Use `agent-spawn.sh`; observe with `agent-state.sh` and
   `agent-peek.sh`; steer with `agent-send.sh`; stop with `agent-stop.sh`. `session-start.sh` is the
   read-only recovery view at the beginning of a lead session.
+- **Hand a task from its engineer to a reviewer with `scripts/agent-review.sh <task-id>
+  <reviewer-role> --brief-file <path> [--engine claude|codex]`.** It reuses the SAME worktree and
+  branch the engineer already has open (a fresh `agent-spawn.sh` call refuses — one task id owns one
+  worktree for its whole life) and requires the current agent to be `idle`, `done`, or `blocked`
+  first. It records the handoff to `$HARNESS_STATE/agent-history/<task-id>.jsonl`
+  (`harness-agent-review-handoff.v1`) — the ledger a fix round's `--brief-file` and any future round
+  count should read, not a native subagent's own transcript. The same command hands a task BACK from
+  reviewer to engineer for a fix round, and from one reviewer to the next round's reviewer — always
+  same task id, same worktree, bumped generation.
 - **Model tier follows how many decisions are left in the task after briefing, not the task's topic.**
   An implementer may be wrong about how well it did the work — never about what the work is. A brief
   that still says "find out X, then choose A or B" is a planning task in implementation clothes:
