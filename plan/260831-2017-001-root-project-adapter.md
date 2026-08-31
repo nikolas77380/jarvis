@@ -1,10 +1,10 @@
 # 260831-2017-001 — root-project-adapter
 
-**Status:** open · **Owner:** {{AGENT}} · **Blocks:** — · **Depends on:** —
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** transition/wake-up and QA-flow tasks · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** <the literal next dispatch or command — see the rules below>
+**Next:** dispatch shell-engineer with the brief below using `scripts/agent-spawn.sh 260831-2017-001`
 
 <!--
 HOW TO USE THIS FILE
@@ -39,31 +39,50 @@ whole session.
 
 ## What and why
 
-What this delivers, and why it is worth doing now. If a decision was already taken on the user's
-behalf, record it here **with its reason** — this is the only place that survives the session that
-took it.
+Make the Jarvis root checkout a first-class project with reserved id `jarvis`, so Jarvis can create
+cards and delegate changes to its own runtime through the reviewed pipeline used for nested
+projects. The user selected the root-project adapter over a permanent self-clone because it keeps a
+single source of truth and lets the harness dogfood its own orchestration.
 
 ## Scope
 
-Files and packages in scope. Then, explicitly:
+Centralize physical project-path resolution, add explicit root onboarding and root plan discovery,
+and preserve nested-project behavior and both task-id formats.
 
-**Out of scope:** what must not be touched, including files a concurrent agent owns.
+**Owns:** `scripts/*project*.sh`, `scripts/harness-state-lib.sh`, `scripts/herdr-runtime-lib.sh`,
+`scripts/onboard-project.sh`, `scripts/new-task.sh`, `tests/*project*`, `tests/*task*`, `plan/**`,
+`templates/plan-task-card.md`, `RULES.md`
 
-## Brief — {{AGENT}}
+**Out of scope:** reviewer/QA transition behavior, waiter lifecycle, visual-only delta routing,
+fresh lead-session automation, `.edith/`, and application code under `projects/`.
 
-The text to hand down verbatim: instruction, file paths, the boundary rule that applies, what is out
-of scope, and "done" as commands. Written here rather than left in the conversation so the next
-session dispatches it instead of rebuilding it.
+## Brief — shell-engineer
+
+Implement first-class root-project support for Jarvis. Read `RULES.md` completely. Use TDD: first
+add failing tests proving that reserved project id `jarvis` resolves to the harness root, ordinary
+ids still resolve to `projects/<name>`, root onboarding creates or accepts root `plan/` without a
+nested clone, task lookup scans root plus nested plans and refuses an ambiguous duplicate id, and
+root role/worktree resolution uses root `agents/` while leaving the main checkout untouched.
+
+Centralize the special case in one resolver; callers must consume it rather than scatter
+`if project == jarvis` branches. Preserve legacy `Tnn` and timestamp ids. Update stale template/rule
+text that says root plans can never exist, limited to this contract.
+
+Out of scope: `agent-review.sh`, `agent-wait.sh`, `agents/design-qa.md`, QA verdict routing, lead
+session relaunch, `.edith/`, and nested application code. Do not merge or force-push. Commit, push,
+open a PR to `main`, and write `reports/260831-2017-001-shell-engineer.md`.
 
 ## Done means
 
-The commands that must pass, by name. If a suite can skip (missing service or env), say that a skip
-counts as unverified, not green.
+- Focused root-project tests pass.
+- The actual full shell-suite command discovered from existing runners passes; skip is unverified.
+- `scripts/plan-check.sh` passes for bootstrap and a root-plan fixture.
+- PR is open against `main`; branch contains the report.
 
 ## Decisions still open
 
-Anything the implementer must NOT decide alone. If this section is non-empty, the task is not ready
-to hand to a cheaper tier — resolve it first or mark the card `needs-decision`.
+None. The user selected the root-project adapter and reserved id `jarvis`; a permanent self-clone is
+not an acceptable end state.
 
 ## Rounds
 
