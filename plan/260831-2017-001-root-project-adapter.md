@@ -4,7 +4,7 @@
 **Validation:** strict
 **Engine:** claude
 PR: #2
-**Next:** run `scripts/review-rounds.sh 260831-2017-001`, then dispatch a logic-tier reviewer with `scripts/agent-review.sh 260831-2017-001 reviewer --brief-file reports/260831-2017-001-shell-engineer.md` against PR #2 (round 1 of 2)
+**Next:** run `scripts/review-rounds.sh 260831-2017-001`, then dispatch a logic-tier reviewer with `scripts/agent-review.sh 260831-2017-001 reviewer --brief-file reports/260831-2017-001-shell-engineer.md` against `92dc2ee..HEAD` plus the round-1 findings below (round 2 of 2)
 
 <!--
 HOW TO USE THIS FILE
@@ -89,3 +89,36 @@ not an acceptable end state.
 Append a `## Review round N` section per round: verdict, what was found, what was fixed, and anything
 deliberately left alone with the reason. `scripts/review-rounds.sh` compares these headings against
 what actually ran in the transcripts, and the ceiling is two.
+
+## Review round 1 — REQUEST_CHANGES
+
+Reviewer ran 17/17 shell tests and `scripts/plan-check.sh`, both green, and approved the centralized
+resolver, duplicate refusal, reserved-name collision, both task-id formats, and nested-project
+behavior at tip `92dc2ee`. Five findings, all fixed here with TDD (failing test added and confirmed
+red against `92dc2ee`, then the minimal fix, then green):
+
+1. **Fixed.** A `jarvis` task worktree is a linked worktree carrying the harness's own `scripts/`, so
+   `herdr-runtime-lib.sh`'s BASH_SOURCE-derived `HARNESS_ROOT` resolved to the worktree itself,
+   silently forking a second fleet. Guard added in `herdr-runtime-lib.sh`: detect a linked worktree
+   (`.git` is a file) and re-resolve `HARNESS_ROOT` to the main checkout via
+   `git rev-parse --path-format=absolute --git-common-dir`. Covered by
+   `tests/root-project-worktree-guard.test.sh`.
+2. **Fixed.** `session-start.sh` now resolves the explicit `--project jarvis` index through
+   `project_root_path`, and the no-project form enumerates the root `plan/INDEX.md` under a `--
+   jarvis --` section alongside every nested project.
+3. **Fixed.** `fleet-snapshot.sh` now globs `plan/*.md` at the harness root in addition to
+   `projects/*/plan/*.md`, so a freshly minted or torn-down root card with no runtime metadata yet
+   shows up in FLEET STATE. Findings 2 and 3 are both covered by
+   `tests/root-project-discovery.test.sh`.
+4. **Fixed.** `task-teardown.sh`'s legacy-metadata fallback (`project_root=$HARNESS_ROOT/projects/$PROJECT`)
+   is replaced with `project_root_path "$PROJECT"`, so a `jarvis`-owned task record predating the
+   `project_root` field resolves correctly instead of dying. Covered by a new scenario appended to
+   `tests/task-teardown.test.sh`.
+5. **Fixed.** `docs/herdr-runtime.md` (State section, and the Spawn bullet under Behaviour) and
+   `README.md` (nested-onboarding step 3) no longer state that a shared root `plan/` can never exist;
+   both now name the reserved `jarvis` exception, matching the wording already in `RULES.md`.
+
+Full suite: 19/19 `tests/*.test.sh` pass (17 prior + the 2 new files above); `scripts/plan-check.sh`
+and `scripts/owns-check.sh` both pass. Working tree changes are bounded to the five named files plus
+tests and this card — nothing under `agent-review.sh`, `agent-wait.sh`, `agents/design-qa.md`, QA
+verdict routing, lead relaunch, `.edith/`, or nested application code was touched.

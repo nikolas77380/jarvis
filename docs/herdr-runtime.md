@@ -33,11 +33,13 @@ Projects are central clones under `projects/<project>`. Runtime metadata is loca
 `.harness-state/`. A task record binds the task card, project clone, worktree, branch, role
 definition, engine, generation, unique Herdr agent name, session, workspace, tab, and pane.
 Task cards remain the durable project plan; runtime metadata records live execution identity only.
-Plan cards live inside each project's own checkout, at `projects/<project>/plan/` — never in a
-shared `plan/` at the harness root. Herdr resolves a task id by scanning every `projects/*/plan/`
-and derives the owning project from where the card was found, because each project's worktrees only
-ever contain what its own repo commits, and that is also where that project's claim locks and
-review-rounds ledger live.
+Plan cards live inside each project's own checkout, at `projects/<project>/plan/`, plus one reserved
+exception: project id `jarvis` resolves to the harness root checkout itself rather than a nested
+clone (`project_root_path` in `scripts/herdr-runtime-lib.sh`; a nested `projects/jarvis` collides
+with it and is refused). Herdr resolves a task id by scanning every `projects/*/plan/` plus the
+harness root's own `plan/` and derives the owning project from where the card was found, because
+each project's worktrees only ever contain what its own repo commits, and that is also where that
+project's claim locks and review-rounds ledger live.
 The persistent interactive orchestrator has a separate `.harness-state/jarvis.meta` binding and
 generation history. Calling `jarvis` attaches to that binding instead of creating a duplicate.
 
@@ -53,8 +55,10 @@ generation history. Calling `jarvis` attaches to that binding instead of creatin
 - Spawn resolves its engine in this order: command-line override, task-card `Engine`, project
   `engine`, the live orchestrator's own current engine (from `.harness-state/jarvis.meta`, when
   Jarvis is running and not stopped), global `defaultEngine`, Claude fallback.
-- Spawn resolves exactly one task card by scanning `projects/*/plan/`, derives `Project` from that
-  location and reads the card's `Owner`, creates an isolated worktree from `projects/<project>`,
+- Spawn resolves exactly one task card by scanning `projects/*/plan/` plus the harness root's own
+  `plan/`, derives `Project` from that location and reads the card's `Owner`, creates an isolated
+  worktree from the resolved project root (`project_root_path`; `projects/<project>` for an
+  ordinary project, the harness root itself for `jarvis`),
   creates a background Herdr tab, starts the selected engine with the central rules and role
   definition through Herdr, submits the card's `## Brief`, and publishes metadata only after every
   step succeeds.

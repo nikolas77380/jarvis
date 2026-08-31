@@ -4,6 +4,17 @@
 set -euo pipefail
 
 HARNESS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# A root-project (reserved id `jarvis`) task worktree is a linked worktree that carries the
+# harness's own scripts/, so the BASH_SOURCE-derived root above would otherwise resolve to the
+# worktree itself instead of the main checkout — silently forking a second fleet (its own
+# .harness-worktrees/.harness-state, invisible to the real runtime). `.git` is a file rather than a
+# directory only for a linked worktree, never for a normal clone; re-resolve through git to the
+# checkout it belongs to.
+if [ -f "$HARNESS_ROOT/.git" ]; then
+  MAIN_GIT_DIR=$(git -C "$HARNESS_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) \
+    || { echo "error: could not resolve the main checkout for linked worktree $HARNESS_ROOT" >&2; exit 1; }
+  HARNESS_ROOT="$(cd "$MAIN_GIT_DIR/.." && pwd)"
+fi
 HARNESS_STATE="${HARNESS_STATE_DIR:-$HARNESS_ROOT/.harness-state}"
 HARNESS_WORKTREES="${HARNESS_WORKTREE_DIR:-$HARNESS_ROOT/.harness-worktrees}"
 HARNESS_HERDR_SESSION="${HARNESS_HERDR_SESSION:-harness}"
