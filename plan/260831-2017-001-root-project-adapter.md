@@ -1,10 +1,10 @@
 # 260831-2017-001 — root-project-adapter
 
-**Status:** in-review · **Owner:** shell-engineer · **Blocks:** transition/wake-up and QA-flow tasks · **Depends on:** —
+**Status:** in-review · **Owner:** lead · **Blocks:** transition/wake-up and QA-flow tasks · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #2
-**Next:** run `scripts/review-rounds.sh 260831-2017-001`, then dispatch a logic-tier reviewer with `scripts/agent-review.sh 260831-2017-001 reviewer --brief-file reports/260831-2017-001-shell-engineer.md` against `92dc2ee..HEAD` plus the round-1 findings below (round 2 of 2)
+**Next:** the round ceiling (2) is reached — read `## Fix round 2 result` below, run a targeted verification of the guard hunks at `9d5f977` (delta `5329484..9d5f977`: `scripts/herdr-runtime-lib.sh`, `scripts/harness-state-lib.sh`, `scripts/fleet-snapshot.sh`, and the two extended test files) against Findings A and B, re-run the full shell suite plus `plan-check.sh`/`owns-check.sh`, then decide on merge — not a review round 3
 
 <!--
 HOW TO USE THIS FILE
@@ -122,3 +122,65 @@ Full suite: 19/19 `tests/*.test.sh` pass (17 prior + the 2 new files above); `sc
 and `scripts/owns-check.sh` both pass. Working tree changes are bounded to the five named files plus
 tests and this card — nothing under `agent-review.sh`, `agent-wait.sh`, `agents/design-qa.md`, QA
 verdict routing, lead relaunch, `.edith/`, or nested application code was touched.
+
+## Fix round 1 result
+
+Engineer pushed `5329484`, closing all five findings with new regression coverage. The committed
+state passes 19/19 `tests/*.test.sh`, `scripts/plan-check.sh`, and `scripts/owns-check.sh`.
+
+## Review brief — round 2 of 2
+
+Review only delta `92dc2ee..5329484` and the five round-1 findings above; do not re-read the full PR.
+Re-run the complete shell suite plus plan and ownership checks. Verify each finding is closed without
+regression, especially that the linked-worktree guard fails before any fleet mutation while normal
+root and nested project flows remain valid. Write the final verdict to
+`reports/260831-2017-001-shell-reviewer.md`. Return `APPROVE` or `REQUEST_CHANGES` in at most 15
+lines. Strictly read-only; do not edit, commit, push, or merge.
+
+## Review round 2 — REQUEST_CHANGES; ceiling reached
+
+Full checks passed, and round-1 findings 2–5 were closed. Two related guard defects remained:
+
+- The round-1 implementation redirected `HARNESS_ROOT` from a linked Jarvis worktree to the
+  canonical checkout, allowing fleet mutation instead of refusing it — the opposite of what finding 1
+  asked for.
+- `.git` as a file also describes submodules; the redirect could resolve `HARNESS_ROOT` into
+  `.git/modules` without validation. `fleet-snapshot.sh` independently derived a different root
+  (split-brain).
+
+The user selected the recommended strict boundary on 2026-09-01 and approved a bounded fix: refuse
+fleet mutation from a linked Jarvis worktree (read-only inspection stays usable), detect submodules
+correctly, and make `fleet-snapshot.sh` consume the same validated resolver.
+
+## Fix round 2 result
+
+Engineer pushed `9d5f977`, closing both round-2 findings (delta `5329484..9d5f977`):
+
+- **Finding A (redirect instead of refusal).** Added `require_fleet_mutation_allowed()` to
+  `herdr-runtime-lib.sh`, wired into `state_lock_acquire()` in `harness-state-lib.sh` — the one
+  choke point every fleet-mutating entry point (`agent-spawn.sh`, `agent-review.sh`, `agent-stop.sh`,
+  `agent-switch.sh`, `agent-reconcile.sh`, `task-teardown.sh --execute`, `clean-slate-protocol.sh`,
+  `events-poll.sh`, `decisions.sh`, `inbox.sh`) already passes through, so no caller needed an
+  individual change. Also wired into `workspace_ensure()` and `atomic_meta_write()` as defense in
+  depth. The redirect itself is kept (read-only inspection — `session-start.sh`, `harness-observe.sh`,
+  `fleet-snapshot.sh` — still needs it to see the real fleet).
+- **Finding B (submodule misfire).** Detection now compares `git rev-parse --git-dir` against
+  `--git-common-dir` (equal only for a submodule, different for a genuine linked worktree) and
+  requires the resolved candidate to contain `scripts/herdr-runtime-lib.sh` before trusting it.
+  Verified against a real `git submodule add` fixture: `HARNESS_ROOT` stays at the submodule's own
+  checkout, never resolves into `.git/modules`.
+- **`fleet-snapshot.sh`** now sources `herdr-runtime-lib.sh` instead of computing its own
+  `BASH_SOURCE`-derived root, closing the split-brain the round-2 report flagged as a non-blocking
+  observation.
+- `tests/state-lock.test.sh` was rebuilt against an isolated fixture repo — sourcing the ambient
+  checkout directly broke the moment the guard shipped, since this task's own worktree is itself a
+  linked Jarvis worktree and now legitimately trips the refusal.
+- `tests/root-project-worktree-guard.test.sh` gained four cases: the refusal (message names the
+  worktree and the canonical checkout, no lock left behind), read-only sourcing still succeeds,
+  `fleet-snapshot.sh` sees a canonical-only card proving no split-brain, and a real submodule fixture
+  is never mistaken for a linked worktree. Each new test was confirmed to fail against the
+  pre-fix code before the fix landed (guard removed → mutation succeeds; git-dir/common-dir check
+  reverted to the naive `.git`-is-a-file test → submodule resolves into `.git/modules`).
+
+Full suite: 19/19 `tests/*.test.sh` pass, `scripts/plan-check.sh` and `scripts/owns-check.sh` both
+pass. Full report: `reports/260831-2017-001-shell-engineer.md`.
