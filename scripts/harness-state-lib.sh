@@ -14,6 +14,7 @@ state_process_identity() {
 
 state_lock_acquire() {
   local key=$1 lock owner pid identity observed
+  require_fleet_mutation_allowed
   valid_task_id "$key" || die "invalid lock key: $key"
   lock="$HARNESS_STATE/locks/$key.lock"
   owner="$lock/owner.meta"
