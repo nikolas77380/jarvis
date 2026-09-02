@@ -16,7 +16,8 @@ trap 'rm -rf "$TMP"' EXIT
 REPO="$TMP/harness"
 mkdir -p "$REPO/scripts" "$REPO/plan" "$REPO/agents"
 cp "$ROOT/scripts/herdr-runtime-lib.sh" "$ROOT/scripts/harness-state-lib.sh" "$ROOT/scripts/fleet-snapshot.sh" \
-  "$ROOT/scripts/harness-observe.sh" "$REPO/scripts/"
+  "$ROOT/scripts/harness-observe.sh" "$ROOT/scripts/quota-resume-lib.sh" "$ROOT/scripts/agent-send.sh" \
+  "$ROOT/scripts/agent-attach.sh" "$REPO/scripts/"
 
 cd "$REPO"
 git init -q
@@ -84,6 +85,70 @@ rm -f "$MUTATE_ERR"
 (cd "$WORKTREE" && HARNESS_HERDR_SESSION=test-harness bash -c \
   '. scripts/herdr-runtime-lib.sh && . scripts/harness-state-lib.sh') \
   || { echo 'sourcing the runtime libs from inside a linked worktree unexpectedly failed' >&2; exit 1; }
+
+# --- the finite list of fleet-mutating entry points must ALL refuse before mutating anything, from
+#     inside the linked worktree - not just state_lock_acquire above. A future entrypoint that reaches
+#     $HARNESS_STATE or a live Herdr tab without going through require_fleet_mutation_allowed must make
+#     this block fail, not silently pass; that was exactly the gap a targeted verification found in
+#     quota_meta_write/quota metadata removal (agent-wait.sh, quota-resume-poll.sh) and in
+#     agent-send.sh/agent-attach.sh's live Herdr mutations.
+
+FAKEBIN="$TMP/bin"
+mkdir -p "$FAKEBIN"
+cat > "$FAKEBIN/herdr" <<'FAKE'
+#!/usr/bin/env bash
+echo "herdr unexpectedly invoked: $*" >&2
+exit 1
+FAKE
+chmod +x "$FAKEBIN/herdr"
+
+mkdir -p "$REPO/.harness-state" "$REPO/.harness-state/quota"
+cat > "$REPO/.harness-state/T01.meta" <<'EOF'
+schema=harness-herdr-task.v1
+task=T01
+agent_name=h_t01
+session=test-harness
+tab=tab-1
+stopped=0
+EOF
+printf 'schema=harness-quota-resume.v1\nkey=T01\n' > "$REPO/.harness-state/quota/T01.meta"
+
+assert_guard_refuses() {
+  local desc=$1 err
+  shift
+  err=$(mktemp)
+  if (cd "$WORKTREE" && PATH="$FAKEBIN:$PATH" HARNESS_HERDR_SESSION=test-harness "$@") >/dev/null 2>"$err"; then
+    echo "$desc unexpectedly succeeded from inside a linked Jarvis task worktree" >&2
+    cat "$err" >&2
+    exit 1
+  fi
+  grep -q 'linked Jarvis task worktree' "$err" \
+    || { echo "$desc did not refuse with the linked-worktree guard message: $(cat "$err")" >&2; exit 1; }
+  rm -f "$err"
+}
+
+assert_guard_refuses 'quota_meta_write' bash -c \
+  '. scripts/herdr-runtime-lib.sh && . scripts/quota-resume-lib.sh && quota_meta_write T99 task claude 0 excerpt'
+[ ! -e "$REPO/.harness-state/quota/T99.meta" ] \
+  || { echo 'quota_meta_write created a quota file despite refusing' >&2; exit 1; }
+
+assert_guard_refuses 'quota_meta_remove' bash -c \
+  '. scripts/herdr-runtime-lib.sh && . scripts/quota-resume-lib.sh && quota_meta_remove T01'
+[ -f "$REPO/.harness-state/quota/T01.meta" ] \
+  || { echo 'quota_meta_remove deleted quota metadata despite refusing' >&2; exit 1; }
+
+assert_guard_refuses 'atomic_meta_write' bash -c \
+  '. scripts/herdr-runtime-lib.sh && atomic_meta_write "$HARNESS_STATE/should-not-exist.meta" <<< x'
+[ ! -e "$REPO/.harness-state/should-not-exist.meta" ] \
+  || { echo 'atomic_meta_write created a file despite refusing' >&2; exit 1; }
+
+assert_guard_refuses 'workspace_ensure' bash -c '. scripts/herdr-runtime-lib.sh && workspace_ensure'
+[ ! -e "$REPO/.harness-state/herdr-workspace.meta" ] \
+  || { echo 'workspace_ensure created a workspace record despite refusing' >&2; exit 1; }
+
+assert_guard_refuses 'agent-send.sh' scripts/agent-send.sh T01 hello
+
+assert_guard_refuses 'agent-attach.sh' scripts/agent-attach.sh T01
 
 # --- fleet-snapshot.sh must consume the same validated resolver, not its own BASH_SOURCE-derived root,
 #     so it cannot split-brain against the canonical checkout when run directly from the worktree ---

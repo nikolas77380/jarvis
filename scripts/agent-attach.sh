@@ -6,4 +6,5 @@ ID=${1:-}
 [ -n "$ID" ] || die "usage: agent-attach.sh <task-id>"
 require_tools
 META=$(require_meta "$ID")
+require_fleet_mutation_allowed
 herdr --session "$(meta_get "$META" session)" tab focus "$(meta_get "$META" tab)"

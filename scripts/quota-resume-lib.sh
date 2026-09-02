@@ -34,6 +34,7 @@ quota_resume_epoch() {
 
 quota_meta_write() {
   local key=$1 kind=$2 engine=$3 epoch=$4 excerpt=$5 file tmp
+  require_fleet_mutation_allowed
   mkdir -p "$HARNESS_STATE/quota"
   file="$HARNESS_STATE/quota/$key.meta"
   tmp=$(mktemp "$HARNESS_STATE/quota/.quota.XXXXXX")
@@ -43,4 +44,12 @@ quota_meta_write() {
   chmod 600 "$tmp"
   mv "$tmp" "$file"
   printf '%s\n' "$file"
+}
+
+# The one place quota metadata is removed from - agent-wait.sh and quota-resume-poll.sh both call
+# this rather than `rm -f` the file directly, so the guard can't be bypassed by a caller that forgets it.
+quota_meta_remove() {
+  local key=$1
+  require_fleet_mutation_allowed
+  rm -f "$HARNESS_STATE/quota/$key.meta"
 }

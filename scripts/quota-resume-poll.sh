@@ -41,6 +41,6 @@ for QUOTA in "$HARNESS_STATE"/quota/*.meta; do
     jarvis) JARVIS_NO_ATTACH=1 "$HARNESS_ROOT/bin/jarvis" relaunch >/dev/null ;;
     *) continue ;;
   esac
-  rm -f "$QUOTA"
+  quota_meta_remove "$KEY"
   printf 'quota resumed: %s\n' "$KEY"
 done

@@ -7,4 +7,5 @@ ID=${1:-}; shift || true
 require_tools
 META=$(require_meta "$ID")
 [ "$(meta_get "$META" stopped)" != 1 ] || die "task $ID is stopped"
+require_fleet_mutation_allowed
 herdr --session "$(meta_get "$META" session)" agent prompt "$(meta_get "$META" agent_name)" "$*"

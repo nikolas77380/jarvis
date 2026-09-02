@@ -38,7 +38,7 @@ while :; do
     printf 'task %s quota-limited; automatic resume at %s\n' "$ID" "$(date -r "$EPOCH" 2>/dev/null || date -d "@$EPOCH")"
     while [ "$(date +%s)" -lt "$EPOCH" ]; do sleep 30; done
     "$HARNESS_ROOT/scripts/agent-switch.sh" "$ID" "$(meta_get "$META" engine)" --relaunch --note "Provider quota reset. Resume the task automatically from the preserved branch and worktree; do not wait for a human to say continue." >/dev/null
-    rm -f "$HARNESS_STATE/quota/$ID.meta"
+    quota_meta_remove "$ID"
     META=$(require_meta "$ID"); NAME=$(meta_get "$META" agent_name); SESSION=$(meta_get "$META" session)
     ARGS=("$NAME"); [ -z "$TIMEOUT" ] || ARGS+=(--timeout "$TIMEOUT")
     continue
