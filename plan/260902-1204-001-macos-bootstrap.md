@@ -1,46 +1,14 @@
 # 260902-1204-001 — macos-bootstrap
 
-**Status:** in-review · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
 **Validation:** strict
 **Engine:** claude
 PR: #3
-**Next:** run `scripts/review-rounds.sh 260902-1204-001`, then dispatch round 1 of 2 against the
-full diff at `03dfb01` (PR #3) to the logic-tier reviewer — the diff touches `bin/jarvis`'s root
-resolution, a shared entry point, alongside the new `bootstrap.sh`.
-
-<!--
-HOW TO USE THIS FILE
-Install it as `projects/<project>/plan/TEMPLATE.md` — INSIDE that project's own checkout — copy it to
-`plan/Tnn-<slug>.md` per task, and delete this comment. Add the task's line to `plan/INDEX.md` in the
-same change; cross-task ordering lives THERE, never only here.
-
-The harness root itself is the one reserved exception: project id `jarvis` resolves to the harness
-root checkout rather than `projects/jarvis` (there is no `projects/jarvis` — that name is reserved
-and refused), so a root `plan/` — like this one — is legitimate and is the harness's own plan. Every
-other project's plan/ still lives INSIDE that project's own checkout, never at the harness root.
-Herdr creates each task's isolated worktree from that resolved checkout, and that worktree only ever
-contains what is committed to that project's own repo — so the card, the claim lock under
-`plan/.claims/`, and the review-rounds ledger all have to live inside the project's checkout to stay
-visible across its worktrees. `task_card` in `scripts/herdr-runtime-lib.sh` finds a card by scanning
-every `projects/*/plan/` plus the root `plan/`, and derives the project from WHICH one it found the
-card in via `card_project` — there is no `**Project:**` header field to keep in sync by hand.
-
-The header fields are parsed, not decoration:
-  **Status:**  handoff.sh prints it back at you  (open · in-progress · in-review · blocked ·
-               needs-decision · done)
-  PR:          review-rounds.sh reads it with ^\**PR\**:?\s*#(\d+) — it MUST be on its own line and
-               it MUST be the digits, `PR: #18`. A PR mentioned in prose is not declared, and a
-               loose match once attributed one PR's review rounds to three different tasks.
-  **Next:**    the literal next dispatch or command. A resuming session must be able to EXECUTE it
-               without deriving it: "dispatch api-engineer with the brief under ## Brief" or "run
-               scripts/review-rounds.sh T08, then dispatch round 2 against 3f91c02..HEAD with the
-               two findings under ## Review round 1". "Continue T08" is not a next action.
-
-Rewrite **Next:** every time an agent reports back, BEFORE dispatching the next one, and run
-`scripts/checkpoint.sh <task>` — it fails while this line is missing or still says the placeholder
-above. That write is what makes an interrupted session or a dead run cost one agent run instead of a
-whole session.
--->
+**Next:** hand PR #3 back to the engineer for the round-1 fix delta with
+`scripts/agent-review.sh 260902-1204-001 shell-engineer --brief-file plan/260902-1204-001-macos-bootstrap.md --engine claude`,
+briefing it on findings 1-3 under `## Review round 1` (findings 4-6 are its call, each either fixed
+or declined on the card with a reason). Round 1 of 2 is spent: the next reviewer dispatch is the
+LAST one, reviews only `c29e209..<fix tip>`, and re-runs every check in full.
 
 ## What and why
 
@@ -115,3 +83,91 @@ command choices were confirmed by the user.
 Append a `## Review round N` section per round: verdict, what was found, what was fixed, and anything
 deliberately left alone with the reason. `scripts/review-rounds.sh` compares these headings against
 what actually ran in the transcripts, and the ceiling is two.
+
+## Review round 1
+
+**Verdict:** REQUEST_CHANGES · **Reviewer:** shell-reviewer (logic tier) · **Reviewed:**
+`main...c29e209`, implementation tip `03dfb01` · **Full report:**
+`reports/260902-1204-001-shell-reviewer.md`
+
+Ran in the lead session under the `shell-reviewer` role rather than a Herdr reviewer tab, so
+`scripts/review-rounds.sh` sees `ran 0` against `recorded 1`. This heading is the round of record.
+
+**Checks re-run by the reviewer** (not taken from the engineer summary): 21/21 `tests/*.test.sh`
+PASS individually · `shellcheck bootstrap.sh` clean · `shellcheck bin/jarvis` clean within the
+diffed hunk (SC1091 x3 and SC2034 are pre-existing, outside the diff) · `scripts/plan-check.sh` ok ·
+`scripts/owns-check.sh` ok (1 active card, 4 claims, no overlap; `bin/jarvis` is properly declared
+under `Owns:` with the recorded user approval).
+
+### Blockers — must close to pass round 2
+
+1. **The fresh-macOS path aborts after a successful installer run.** `bootstrap.sh:60-78`
+   (`ensure_herdr`, `ensure_claude`) confirm the install with `command -v` against the current
+   process PATH, but `$HOME/.local/bin` is never added to it: `ensure_path_export`
+   (`bootstrap.sh:80-88`) only appends to `~/.zprofile`, and `main` calls it at line 155, after both
+   installers. Both official installers place their binary in `~/.local/bin` — measured on the
+   review host: `command -v claude` → `/Users/nikolaykipniak/.local/bin/claude`, `command -v herdr` →
+   `/Users/nikolaykipniak/.local/bin/herdr`. That is the same directory `verify`
+   (`bootstrap.sh:137-142`) already assumes may be absent from PATH. Reproduced with a fixture whose
+   fake installers write into `$HOME/.local/bin` while PATH excludes it: the run dies with
+   `error: herdr installation did not put herdr on PATH` while `$HOME/.local/bin/herdr` exists and is
+   executable; `ensure_claude` fails identically once herdr is out of the way. So the primary
+   scenario the script exists for fails closed with a misleading message. The suite cannot catch it
+   because `fake_curl` installs into `$BOOTSTRAP_TEST_BIN` (`tests/bootstrap.test.sh:88`, `:95`) and
+   `run_bootstrap` sets `PATH="$dir/bin"` to that same directory (`tests/bootstrap.test.sh:113`) —
+   the fixture installer always installs onto PATH, which no real installer guarantees.
+   *Fix:* export `PATH="$HOME/.local/bin:$PATH"` idempotently inside `bootstrap.sh` before the
+   installer steps, plus a case whose fake installer targets `$HOME/.local/bin` with PATH excluding
+   it.
+
+2. **`mv` onto a directory destination moves the link inside it instead of replacing it.**
+   `bootstrap.sh:119-121` stages `ln -s` to a temp name and then `mv "$tmp_link" "$JARVIS_LINK"`.
+   BSD `mv` resolves a directory destination, and follows a symlink to one, and moves the source
+   *into* it. Measured on the review host: `mv tmp_link dest_dir` left `dest_dir` intact with the
+   link at `dest_dir/tmp_link`; with `jarvis -> realdir` staged, `mv tmp2 jarvis` left `jarvis`
+   pointing at `realdir` and dropped the link at `realdir/tmp2`. Two reachable paths:
+   `bootstrap.sh:116-118`, where the destination is a directory — `confirm_replace` asks, the user
+   agrees, nothing is replaced, a stray `.jarvis.bootstrap.<pid>` is left inside it, and `verify`
+   then dies at `bootstrap.sh:133`, so a granted confirmation yields both a failure and litter; and
+   `bootstrap.sh:109-115`, where a stale symlink pointing at a *directory* is "repaired" with no
+   prompt at all, so the repair silently does nothing and litters the old target. Neither is
+   covered: test 8 uses a symlink to a non-existent file (`tests/bootstrap.test.sh:263`), and test 9
+   plus both interactive cases use a regular file.
+   *Fix:* unlink the destination explicitly before the atomic rename (BSD `mv` has no `-T`), or use
+   `ln -sfn`, and reject a directory destination outright in `ensure_symlink` rather than routing it
+   through `confirm_replace` as if replacement would work. Add both directory cases.
+
+3. **`ZDOTDIR` is ignored, so the PATH export can land in a file zsh never reads.**
+   `bootstrap.sh:81` uses `$HOME/.zprofile` unconditionally. With `ZDOTDIR` set, zsh reads
+   `$ZDOTDIR/.zprofile`, so the export is written where nothing sources it: `jarvis` silently never
+   reaches PATH while bootstrap reports success and `verify` prints the reassuring "added to
+   ~/.zprofile" line. This repo already has the convention — `bin/jarvis install-alias` uses
+   `${ZDOTDIR:-$HOME}/.zshrc` (`bin/jarvis:108`). Non-blocking on its own, but it lives in the same
+   function as finding 1, so it closes in the same round.
+   *Fix:* `${ZDOTDIR:-$HOME}/.zprofile`, with the resolved path reflected at `bootstrap.sh:83`,
+   `:87`, `:141`.
+
+### Engineer's call — fix or decline with a reason on this card
+
+4. `~/.zprofile` is mutated before `ensure_symlink` can refuse (`main` line 155 before 156), so a
+   declined confirmation at `bootstrap.sh:117` fails with the profile already edited. Test 9 asserts
+   the destination file was not mutated (`tests/bootstrap.test.sh:287-288`) but says nothing about
+   the profile, so the behaviour is unspecified rather than chosen.
+5. The temp symlink leaks on `mv` failure — `bootstrap.sh:119-121` has no trap or cleanup, so a
+   failure under `set -e` leaves `~/.local/bin/.jarvis.bootstrap.<pid>` in a directory about to be
+   put on the user's PATH.
+6. The symlink-resolution loop has no iteration cap (`bootstrap.sh:9-16`, `bin/jarvis:4-11`), so a
+   symlink cycle spins forever instead of failing. `bin/jarvis` is the shared entry point every
+   command goes through, which makes the counter worth having.
+
+### Confirmed sound — do not re-litigate in round 2
+
+The `bin/jarvis:3-12` root-resolution fix is the correct idiom, is genuinely required by the symlink
+this task installs, and is exercised end to end: `verify` invokes `"$JARVIS_LINK" status`
+(`bootstrap.sh:143`), so the fresh and path-with-spaces cases run `bin/jarvis` *through* the
+installed symlink and would turn red if the loop were removed. Fixture isolation is real (per-case
+HOME, curated PATH dir, own clone copy plus the three sourced libs, `never_call` shims that fail the
+test on an unexpected `brew`/`curl`). Idempotence is asserted rather than claimed (case 2 fails on
+any `brew`/`curl` invocation; case 7 runs twice and counts the profile line). Homebrew is printed
+and never executed, with case 3 asserting no symlink and no `.zprofile`. The `pwd -P` fixture
+comment and the `docs/herdr-runtime.md` rationale for the resolution loop both earn their place.
