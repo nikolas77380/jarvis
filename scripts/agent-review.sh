@@ -52,6 +52,7 @@ STATUS=$(printf '%s\n' "$RAW_STATUS" | sed -n '1,80p')
 FINGERPRINT=$(printf '%s\n%s\n%s' "$BRANCH" "$HEAD" "$RAW_STATUS" | git hash-object --stdin)
 
 PROJECT=$(meta_get "$META" project)
+PROJECT_ROOT=$(meta_get "$META" project_root)
 OLD_AGENT=$(meta_get "$META" agent)
 ENGINE=$EXPLICIT_ENGINE; [ -n "$ENGINE" ] || ENGINE=$(meta_get "$META" engine); ENGINE=${ENGINE:-claude}
 ROLE=$(role_path "$PROJECT" "$ROLE_NAME")
@@ -60,11 +61,15 @@ GENERATION=$(meta_get "$META" generation); GENERATION=${GENERATION:-1}; GENERATI
 BRIEF=$(cat "$BRIEF_FILE")
 
 HARNESS_HERDR_SESSION=$SESSION
-LAUNCH=$(engine_start "$ENGINE" "$ID" "$ROLE_NAME" "$ROLE" "$WORKTREE" "$GENERATION") || die "could not start $ROLE_NAME; old agent preserved"
+LAUNCH=$(engine_start "$ENGINE" "$ID" "$ROLE_NAME" "$ROLE" "$WORKTREE" "$GENERATION" "$PROJECT_ROOT") || die "could not start $ROLE_NAME; old agent preserved"
 NEW_TAB=$(printf '%s' "$LAUNCH" | jq -r '.tab'); NEW_PANE=$(printf '%s' "$LAUNCH" | jq -r '.pane'); NEW_NAME=$(printf '%s' "$LAUNCH" | jq -r '.name'); NEW_SYSTEM=$(printf '%s' "$LAUNCH" | jq -r '.system'); NEW_WORKSPACE=$(printf '%s' "$LAUNCH" | jq -r '.workspace')
 NOW_BRANCH=$(git -C "$WORKTREE" branch --show-current); NOW_HEAD=$(git -C "$WORKTREE" rev-parse HEAD); NOW_STATUS=$(git -C "$WORKTREE" status --porcelain)
 NOW_FINGERPRINT=$(printf '%s\n%s\n%s' "$NOW_BRANCH" "$NOW_HEAD" "$NOW_STATUS" | git hash-object --stdin)
 if [ "$FINGERPRINT" != "$NOW_FINGERPRINT" ]; then herdr_call tab close "$NEW_TAB" >/dev/null 2>&1 || true; die "worktree changed during handoff; old agent preserved"; fi
+if ! capability_preflight_pass "$ENGINE" "$NEW_NAME" "$NEW_SYSTEM" "$ROLE"; then
+  herdr_call tab close "$NEW_TAB" >/dev/null 2>&1 || true
+  die "capability preflight failed for $ROLE_NAME; handoff refused, old agent preserved"
+fi
 
 BACKUP=$(mktemp "$HARNESS_STATE/.review-backup.XXXXXX"); cp "$META" "$BACKUP"
 TMP=$(mktemp "$HARNESS_STATE/.review-meta.XXXXXX")

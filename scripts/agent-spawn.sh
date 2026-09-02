@@ -55,10 +55,14 @@ cleanup_failed_spawn() {
 }
 trap cleanup_failed_spawn ERR HUP INT TERM
 
-LAUNCH=$(engine_start "$ENGINE" "$ID" "$AGENT" "$ROLE" "$WORKTREE" 1) || die "could not start $ENGINE agent"
+LAUNCH=$(engine_start "$ENGINE" "$ID" "$AGENT" "$ROLE" "$WORKTREE" 1 "$PROJECT_ROOT") || die "could not start $ENGINE agent"
 TAB=$(printf '%s' "$LAUNCH" | jq -r '.tab'); PANE=$(printf '%s' "$LAUNCH" | jq -r '.pane')
 WORKSPACE=$(printf '%s' "$LAUNCH" | jq -r '.workspace'); RUNTIME_NAME=$(printf '%s' "$LAUNCH" | jq -r '.name')
 SYSTEM_PROMPT=$(printf '%s' "$LAUNCH" | jq -r '.system')
+if ! capability_preflight_pass "$ENGINE" "$RUNTIME_NAME" "$SYSTEM_PROMPT" "$ROLE"; then
+  herdr_call tab close "$TAB" >/dev/null 2>&1 || true
+  die "capability preflight failed for $AGENT; task not dispatched, worktree preserved at $WORKTREE for a fresh session with verified capability"
+fi
 engine_prompt "$ENGINE" "$RUNTIME_NAME" "$SYSTEM_PROMPT" "$BRIEF" || die "could not prompt $ENGINE agent; worktree preserved for reconciliation"
 
 atomic_meta_write "$META" <<EOF
