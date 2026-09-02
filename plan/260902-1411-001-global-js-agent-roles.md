@@ -1,75 +1,74 @@
 # 260902-1411-001 — global-js-agent-roles
 
-**Status:** open · **Owner:** {{AGENT}} · **Blocks:** — · **Depends on:** —
+**Status:** open · **Owner:** general-purpose · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** <the literal next dispatch or command — see the rules below>
+**Next:** dispatch `general-purpose` with `scripts/agent-spawn.sh 260902-1411-001`
 
-<!--
-HOW TO USE THIS FILE
-Install it as `projects/<project>/plan/TEMPLATE.md` — INSIDE that project's own checkout — copy it to
-`plan/Tnn-<slug>.md` per task, and delete this comment. Add the task's line to `plan/INDEX.md` in the
-same change; cross-task ordering lives THERE, never only here.
+## Goal
 
-The harness root itself is the one reserved exception: project id `jarvis` resolves to the harness
-root checkout rather than `projects/jarvis` (there is no `projects/jarvis` — that name is reserved
-and refused), so a root `plan/` — like this one — is legitimate and is the harness's own plan. Every
-other project's plan/ still lives INSIDE that project's own checkout, never at the harness root.
-Herdr creates each task's isolated worktree from that resolved checkout, and that worktree only ever
-contains what is committed to that project's own repo — so the card, the claim lock under
-`plan/.claims/`, and the review-rounds ledger all have to live inside the project's checkout to stay
-visible across its worktrees. `task_card` in `scripts/herdr-runtime-lib.sh` finds a card by scanning
-every `projects/*/plan/` plus the root `plan/`, and derives the project from WHICH one it found the
-card in via `card_project` — there is no `**Project:**` header field to keep in sync by hand.
+Upgrade Jarvis's global JavaScript agent set from the stronger project-local Yavo roles without
+making the shared harness depend on Yavo. This gives every onboarded project reusable NestJS and
+Next.js engineering/review roles plus evidence-driven npm dependency research.
 
-The header fields are parsed, not decoration:
-  **Status:**  handoff.sh prints it back at you  (open · in-progress · in-review · blocked ·
-               needs-decision · done)
-  PR:          review-rounds.sh reads it with ^\**PR\**:?\s*#(\d+) — it MUST be on its own line and
-               it MUST be the digits, `PR: #18`. A PR mentioned in prose is not declared, and a
-               loose match once attributed one PR's review rounds to three different tasks.
-  **Next:**    the literal next dispatch or command. A resuming session must be able to EXECUTE it
-               without deriving it: "dispatch api-engineer with the brief under ## Brief" or "run
-               scripts/review-rounds.sh T08, then dispatch round 2 against 3f91c02..HEAD with the
-               two findings under ## Review round 1". "Continue T08" is not a next action.
-
-Rewrite **Next:** every time an agent reports back, BEFORE dispatching the next one, and run
-`scripts/checkpoint.sh <task>` — it fails while this line is missing or still says the placeholder
-above. That write is what makes an interrupted session or a dead run cost one agent run instead of a
-whole session.
--->
-
-## What and why
-
-What this delivers, and why it is worth doing now. If a decision was already taken on the user's
-behalf, record it here **with its reason** — this is the only place that survives the session that
-took it.
+The user chose five roles, adaptation rather than verbatim copying, npm-only research, read-only
+researcher authority, and the existing Yavo model tiers. Yavo's local roles remain intact because
+project invariants belong in project-local overrides.
 
 ## Scope
 
-Files and packages in scope. Then, explicitly:
+**Owns:** `agents/nestjs-engineer.md`, `agents/nestjs-reviewer.md`,
+`agents/nextjs-engineer.md`, `agents/nextjs-reviewer.md`, `agents/deps-researcher.md`, `RULES.md`,
+`agents/orchestrator.md`, `tests/role-resolution.test.sh`
 
-**Out of scope:** what must not be touched, including files a concurrent agent owns.
+Adapt the five roles from `projects/yavo/agents/` into global roles. Preserve stack-specific
+discipline, bounded review, safety checks, TDD expectations, App Router boundaries, and npm package
+evaluation. Remove Yavo repository names, paths, commands, database topology, financial semantics,
+and other local assumptions. Global roles must obtain project paths, base branch, validation commands,
+and domain invariants from the task brief and project-local instructions.
 
-## Brief — {{AGENT}}
+Update global routing so `deps-researcher` is required before adopting or replacing an npm package
+and before a major upgrade; patch/minor upgrades route to it only for compatibility or security
+uncertainty. The researcher is read-only and returns a ranked, evidence-backed recommendation plus an
+install command; it never installs or edits.
 
-The text to hand down verbatim: instruction, file paths, the boundary rule that applies, what is out
-of scope, and "done" as commands. Written here rather than left in the conversation so the next
-session dispatches it instead of rebuilding it.
+Preserve `model: sonnet` and `codex_model: gpt-5.6-sol` for engineers/researcher; preserve
+`model: opus` and `codex_model: gpt-5.6-sol` for reviewers. Use `gh-axi`, not raw `gh`.
+
+**Out of scope:** all files under `projects/yavo/`; `deputy`, `mechanical-reviewer`, React Native,
+non-npm ecosystems, application code, deployment, secrets, and user-owned `tasks/plan.md` and
+`tasks/todo.md`.
+
+## Brief — general-purpose
+
+Read `RULES.md`, `agents/orchestrator.md`, the five source roles under `projects/yavo/agents/`, and
+the existing global NestJS roles. Implement the scope above as reusable global Jarvis roles. Do not
+copy Yavo-specific facts into shared roles. Keep each role operational: explicit inputs, authority,
+workflow, verification, report contract, and stop conditions. Add or extend fixture-safe role tests
+where useful so frontmatter, global fallback, model fields, read-only researcher tools, routing
+language, and absence of Yavo-specific strings are mechanically checked.
+
+Use test-first changes for executable behavior. Do not edit anything under `projects/yavo/`.
+Commit, push, open a PR to `main`, write `reports/260902-1411-001-general-purpose.md`, and update this
+card and `plan/INDEX.md` at the implementation checkpoint.
 
 ## Done means
 
-The commands that must pass, by name. If a suite can skip (missing service or env), say that a skip
-counts as unverified, not green.
+- `bash tests/role-resolution.test.sh` passes.
+- `bash scripts/plan-check.sh` passes.
+- `bash scripts/owns-check.sh` passes.
+- All five global roles exist with valid frontmatter and the chosen model tiers.
+- No global role contains Yavo-specific repository, path, database, or domain assumptions.
+- npm researcher routing and read-only authority are explicit in both central rule surfaces.
+- PR is open against `main` and the engineer report is committed.
 
 ## Decisions still open
 
-Anything the implementer must NOT decide alone. If this section is non-empty, the task is not ready
-to hand to a cheaper tier — resolve it first or mark the card `needs-decision`.
+None. Scope, adaptation boundary, researcher authority/routing, and model tiers were confirmed by the
+user through the `grill-me` interview.
 
 ## Rounds
 
-Append a `## Review round N` section per round: verdict, what was found, what was fixed, and anything
-deliberately left alone with the reason. `scripts/review-rounds.sh` compares these headings against
-what actually ran in the transcripts, and the ceiling is two.
+Append a `## Review round N` section per round: verdict, findings, fixes, and deliberately deferred
+items with reasons. The review ceiling is two rounds.
