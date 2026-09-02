@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
+**Status:** in-review · **Owner:** shell-reviewer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #5
-**Next:** hand task back to shell-engineer to fix the round-1 capability marker parsing finding only
+**Next:** run scripts/review-rounds.sh 260902-1545-001, then dispatch shell-reviewer round 2 of 2 on code delta 4cd51b4..9c72c33
 
 <!--
 HOW TO USE THIS FILE
@@ -149,3 +149,9 @@ recognize exactly one well-formed marker independent of harmless surrounding age
 still rejecting missing, malformed, duplicate, or contradictory markers. Add a regression test for
 trailing output. Fix round scope is this parser delta and its tests only; all other PR hunks remain
 outside the reading scope for round 2.
+
+**Fix:** `9c72c33` recognizes exactly one well-formed PASS marker anywhere in probe output and
+rejects missing, malformed, duplicate, FAIL, or contradictory markers. Only
+`scripts/agent-engine-lib.sh` and `tests/capability-preflight.test.sh` changed. Engineer reran the
+full 24-file shell suite, plan/ownership checks, and shellcheck successfully. Report-only tip is
+`b0ab6ed`; reports remain outside review scope.
