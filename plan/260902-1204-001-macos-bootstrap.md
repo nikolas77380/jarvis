@@ -1,10 +1,10 @@
 # 260902-1204-001 — macos-bootstrap
 
-**Status:** open · **Owner:** {{AGENT}} · **Blocks:** — · **Depends on:** —
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** <the literal next dispatch or command — see the rules below>
+**Next:** dispatch shell-engineer with this card using `scripts/agent-spawn.sh 260902-1204-001`
 
 <!--
 HOW TO USE THIS FILE
@@ -42,31 +42,64 @@ whole session.
 
 ## What and why
 
-What this delivers, and why it is worth doing now. If a decision was already taken on the user's
-behalf, record it here **with its reason** — this is the only place that survives the session that
-took it.
+Add a single macOS onboarding command, `./bootstrap.sh`, for a freshly cloned Jarvis repository. It
+installs missing runtime dependencies, exposes the global `jarvis` command, verifies the setup, and
+prints the explicit Claude authentication/start commands. This removes the current multi-step manual
+setup and makes first-run behavior repeatable.
+
+User decisions from the `grill-me` interview: macOS only; Homebrew is a prerequisite and is never
+installed automatically; existing tool versions are not upgraded; missing Herdr uses
+`curl -fsSL https://herdr.dev/install.sh | sh`; missing Claude Code uses the official native stable
+installer; the script creates `~/.local/bin/jarvis`; authentication is left interactive after setup.
 
 ## Scope
 
-Files and packages in scope. Then, explicitly:
+**Owns:** `bootstrap.sh`, `tests/bootstrap*.test.sh`, `README.md`, `docs/herdr-runtime.md`
 
-**Out of scope:** what must not be touched, including files a concurrent agent owns.
+**Out of scope:** runtime behavior under `scripts/`, reviewer/QA flow, Linux/Windows support,
+automatic upgrades, Homebrew installation, Claude credentials/tokens, and user task files.
 
-## Brief — {{AGENT}}
+## Brief — shell-engineer
 
-The text to hand down verbatim: instruction, file paths, the boundary rule that applies, what is out
-of scope, and "done" as commands. Written here rather than left in the conversation so the next
-session dispatches it instead of rebuilding it.
+Implement executable `bootstrap.sh` for a fresh macOS clone, using TDD and fixture-isolated HOME/PATH
+so tests never modify the real machine. Read `RULES.md` fully. The script must:
+
+1. Require Darwin and fail clearly elsewhere. Require `brew`; if absent, stop and print the official
+   Homebrew installation URL/command without executing it.
+2. Install only missing `git` and `jq` with Homebrew. Never upgrade an existing command.
+3. Install missing Herdr with the user-approved official command
+   `curl -fsSL https://herdr.dev/install.sh | sh`. Install missing Claude Code with the official
+   stable native installer `curl -fsSL https://claude.ai/install.sh | bash -s stable`. Do not run
+   either installer when its command already works.
+4. Create `~/.local/bin/jarvis` as a symlink to this clone's absolute `bin/jarvis`. Ensure
+   `~/.local/bin` is exported from `~/.zprofile` exactly once. If the destination is an unexpected
+   file/symlink, ask before replacing in an interactive terminal and fail without mutation when
+   non-interactive.
+5. Be safely idempotent. Stage risky writes so a failed dependency install does not publish a broken
+   `jarvis` command. Quote all paths, including clone paths containing spaces.
+6. Verify `git`, `jq`, `herdr`, `claude`, the symlink target, PATH configuration, and read-only
+   `bin/jarvis status`. Do not start Jarvis and do not perform login. Finish with exactly useful next
+   actions: `Authenticate: claude` and `Start Jarvis: jarvis claude`.
+
+Tests must fake `uname`, `brew`, `curl`, installers, commands, HOME, and PATH. Cover fresh install,
+fully installed rerun, missing Homebrew, non-macOS, dependency failure, path with spaces, profile
+deduplication, expected symlink repair, unexpected destination refusal, and interactive confirmation.
+Update README setup instructions and cite the official installer URLs. Do not touch `tasks/plan.md`
+or `tasks/todo.md`. Commit, push, open a PR to `main`, and write
+`reports/260902-1204-001-shell-engineer.md`.
 
 ## Done means
 
-The commands that must pass, by name. If a suite can skip (missing service or env), say that a skip
-counts as unverified, not green.
+- `bash tests/bootstrap.test.sh` passes.
+- All `tests/*.test.sh` pass.
+- `scripts/plan-check.sh` and `scripts/owns-check.sh` pass.
+- `shellcheck bootstrap.sh` passes when ShellCheck is available; absence is reported as unverified.
+- PR is open against `main`, with the engineer report committed.
 
 ## Decisions still open
 
-Anything the implementer must NOT decide alone. If this section is non-empty, the task is not ready
-to hand to a cheaper tier — resolve it first or mark the card `needs-decision`.
+None. All installer authority, channel, upgrade, shell-profile, conflict, authentication, and final
+command choices were confirmed by the user.
 
 ## Rounds
 
