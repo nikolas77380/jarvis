@@ -1,10 +1,10 @@
 # 260831-2017-001 — root-project-adapter
 
-**Status:** in-review · **Owner:** lead · **Blocks:** transition/wake-up and QA-flow tasks · **Depends on:** —
+**Status:** done · **Owner:** lead · **Blocks:** transition/wake-up and QA-flow tasks · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #2
-**Next:** the round ceiling (2) is reached — read `## Fix round 3 result` below, run a targeted verification of guard delta `9d5f977..a430c88` against the "Targeted verification — FAILED" findings (quota metadata write/removal guard, `agent-send.sh`/`agent-attach.sh` Herdr-tab guard, finite mutating-entrypoint coverage test), re-run the full shell suite plus `plan-check.sh`/`owns-check.sh`, then decide on merge — not a review round 3
+**Next:** none — PR #2 was targeted-verified and squash-merged as `7bb4828`
 
 <!--
 HOW TO USE THIS FILE
@@ -105,7 +105,7 @@ red against `92dc2ee`, then the minimal fix, then green):
    `tests/root-project-worktree-guard.test.sh`.
 2. **Fixed.** `session-start.sh` now resolves the explicit `--project jarvis` index through
    `project_root_path`, and the no-project form enumerates the root `plan/INDEX.md` under a `--
-   jarvis --` section alongside every nested project.
+jarvis --` section alongside every nested project.
 3. **Fixed.** `fleet-snapshot.sh` now globs `plan/*.md` at the harness root in addition to
    `projects/*/plan/*.md`, so a freshly minted or torn-down root card with no runtime metadata yet
    shows up in FLEET STATE. Findings 2 and 3 are both covered by

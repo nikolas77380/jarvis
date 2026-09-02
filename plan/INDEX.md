@@ -7,9 +7,9 @@ because a card read on its own cannot tell you it must wait for another.
 Status: `open` · `in-progress` · `in-review` · `blocked` · `needs-decision` · `done`
 Owner: which agent, `user` when the decision is theirs, `lead` for the orchestrator session.
 
-| id                                                         | task                 | status    | owner | depends on | note                                    |
-| ---------------------------------------------------------- | -------------------- | --------- | ----- | ---------- | ---------------------------------------- |
-| [260831-2017-001](260831-2017-001-root-project-adapter.md) | root project adapter | in-review | lead  | —          | PR #2 · complete mutator guard coverage |
+| id                                                         | task                 | status | owner | depends on | note                    |
+| ---------------------------------------------------------- | -------------------- | ------ | ----- | ---------- | ----------------------- |
+| [260831-2017-001](260831-2017-001-root-project-adapter.md) | root project adapter | done   | lead  | —          | PR #2 merged as 7bb4828 |
 
 ## Ordering that is not obvious
 
