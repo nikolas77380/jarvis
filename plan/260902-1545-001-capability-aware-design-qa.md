@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** in-review · **Owner:** shell-reviewer · **Blocks:** — · **Depends on:** —
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #5
-**Next:** run scripts/review-rounds.sh 260902-1545-001, then dispatch shell-reviewer round 1 of 2 against base..4cd51b4
+**Next:** hand task back to shell-engineer to fix the round-1 capability marker parsing finding only
 
 <!--
 HOW TO USE THIS FILE
@@ -137,3 +137,15 @@ worktrees, declares required capabilities in role frontmatter, gates substantive
 preflight, fails closed, and records the anti-proxy invariant. Engineer reports 25 existing plus 5
 new tests green, with `plan-check.sh` and `owns-check.sh` clean. Full report:
 `reports/260902-1545-001-shell-engineer.md`. Reviewer must treat the diff as evidence.
+
+## Review round 1
+
+**Verdict:** NEEDS_CHANGES (reviewer response interrupted by host sleep after producing the finding).
+
+The reviewer reran the full shell suite successfully and confirmed `plan-check.sh` and
+`owns-check.sh` pass. A direct capability-parser reproduction returned capabilities containing
+`figma`, but failed because another output line followed the deterministic marker. The parser must
+recognize exactly one well-formed marker independent of harmless surrounding agent output, while
+still rejecting missing, malformed, duplicate, or contradictory markers. Add a regression test for
+trailing output. Fix round scope is this parser delta and its tests only; all other PR hunks remain
+outside the reading scope for round 2.

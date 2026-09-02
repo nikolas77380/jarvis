@@ -12,7 +12,7 @@ Owner: which agent, `user` when the decision is theirs, `lead` for the orchestra
 | [260831-2017-001](260831-2017-001-root-project-adapter.md)       | root project adapter       | done        | lead           | —               | PR #2 merged as 7bb4828              |
 | [260902-1204-001](260902-1204-001-macos-bootstrap.md)            | macos bootstrap            | in-progress | shell-engineer | 260831-2017-001 | PR #3 · fixing round 1               |
 | [260902-1411-001](260902-1411-001-global-js-agent-roles.md)      | global js agent roles      | in-review   | deputy         | —               | PR #4 · five adapted global JS roles |
-| [260902-1545-001](260902-1545-001-capability-aware-design-qa.md) | capability aware design qa | in-review   | shell-reviewer | —               | PR #5 · review round 1                |
+| [260902-1545-001](260902-1545-001-capability-aware-design-qa.md) | capability aware design qa | in-progress | shell-engineer | —               | PR #5 · fix round 1 parser delta       |
 
 ## Ordering that is not obvious
 
