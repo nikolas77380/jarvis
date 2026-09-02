@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
+**Status:** in-review · **Owner:** shell-reviewer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
-PR: none yet
-**Next:** hand task to shell-engineer with the implementation brief under ## Implementation brief
+PR: #5
+**Next:** run scripts/review-rounds.sh 260902-1545-001, then dispatch shell-reviewer round 1 of 2 against base..4cd51b4
 
 <!--
 HOW TO USE THIS FILE
@@ -129,3 +129,11 @@ push, open a PR, write `reports/260902-1545-001-shell-engineer.md`, and return a
 Append a `## Review round N` section per round: verdict, what was found, what was fixed, and anything
 deliberately left alone with the reason. `scripts/review-rounds.sh` compares these headings against
 what actually ran in the transcripts, and the ceiling is two.
+
+## Engineer checkpoint
+
+PR #5 at `4cd51b4`. The implementation inherits Claude project-scoped MCP consent into task
+worktrees, declares required capabilities in role frontmatter, gates substantive prompts on live
+preflight, fails closed, and records the anti-proxy invariant. Engineer reports 25 existing plus 5
+new tests green, with `plan-check.sh` and `owns-check.sh` clean. Full report:
+`reports/260902-1545-001-shell-engineer.md`. Reviewer must treat the diff as evidence.
