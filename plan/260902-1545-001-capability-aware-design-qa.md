@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** needs-decision · **Owner:** user · **Blocks:** — · **Depends on:** —
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** user chooses fail-closed preflight only or preflight plus a new credential-profile broker
+**Next:** hand task to shell-engineer with the implementation brief under ## Implementation brief
 
 <!--
 HOW TO USE THIS FILE
@@ -70,9 +70,10 @@ Inventory names exact implementation files, reusable primitives, and executable 
 
 ## Decisions still open
 
-None. Capabilities are declared in role frontmatter; the rule applies to every capability-gated
-specialist; recovery creates a new generation/session and never feeds proxy evidence into the
-blocked run. Implementation must reuse a real runtime probe, not infer authorization from config.
+None. A child must inherit the same authorized MCP identity/configuration available to its
+orchestrator. No multi-profile broker is required. Capabilities are declared in role frontmatter; a
+live probe verifies inheritance before the substantive brief; failure is fail-closed and never
+causes the lead to proxy specialist evidence.
 
 ## Inventory checkpoint
 
@@ -89,6 +90,39 @@ a deterministic probe prompt and parsed success/failure marker before releasing 
 However, `agent-switch.sh` selects only Claude versus Codex; it cannot select a different credential
 identity. Automatic recovery to an authenticated agent therefore requires a new profile broker with
 credential enumeration and launch-time profile selection.
+
+## User clarification
+
+The orchestrator already had authorized Figma access. The intended contract is therefore shared
+authorization inheritance, not multiple credential profiles. Diagnose why a Herdr child sees an
+unauthenticated MCP server despite the parent having working access, repair that boundary, and keep
+a live preflight as a regression guard. Never print or relay credential values through lead context.
+
+## Root cause
+
+Claude children inherit the real HOME and keychain, but MCP consent is project-scoped by absolute
+cwd in `~/.claude.json`. `scripts/agent-engine-lib.sh` creates trust state for the new worktree path
+but does not inherit `mcpServers` or `enabledMcpjsonServers` from the parent project entry. Thus the
+same authorized identity appears unauthenticated inside a fresh worktree.
+
+## Implementation brief — shell-engineer
+
+Implement task 260902-1545-001 in the existing task worktree. In
+`scripts/agent-engine-lib.sh`, extend the Claude worktree initialization boundary so a newly created
+worktree inherits the parent project's project-scoped MCP configuration/consent keys
+`mcpServers` and `enabledMcpjsonServers` before any substantive brief is delivered. Copy locally
+between JSON project entries without printing, logging, serializing into reports, or exposing any
+credential/token values. Preserve unrelated child and parent configuration. Add a deterministic live
+capability preflight before the substantive prompt for roles declaring required capabilities; the
+role declaration must be frontmatter, not a hard-coded design-qa map. Probe failure must stop the run
+fail-closed and must not deliver the substantive brief. Add the general lead invariant to
+`RULES.md` and `agents/orchestrator.md`: the lead never fetches or absorbs external-source evidence
+on behalf of a specialist. Update `agents/design-qa.md` so prefetched evidence without live required
+capability cannot yield APPROVE/MATCH. Add regression tests covering MCP key inheritance without
+printing values, preservation of unrelated config, preflight ordering, fail-closed behavior, and
+the anti-proxy rule. Do not touch `projects/` or files owned by active tasks 260902-1204-001 and
+260902-1411-001. Run the relevant shell test suite, lint/static checks, and plan checks. Commit,
+push, open a PR, write `reports/260902-1545-001-shell-engineer.md`, and return at most 15 lines.
 
 ## Rounds
 
