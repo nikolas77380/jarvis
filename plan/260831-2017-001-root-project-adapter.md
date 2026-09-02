@@ -4,7 +4,7 @@
 **Validation:** strict
 **Engine:** claude
 PR: #2
-**Next:** the round ceiling (2) is reached — read `## Fix round 2 result` below, run a targeted verification of the guard hunks at `9d5f977` (delta `5329484..9d5f977`: `scripts/herdr-runtime-lib.sh`, `scripts/harness-state-lib.sh`, `scripts/fleet-snapshot.sh`, and the two extended test files) against Findings A and B, re-run the full shell suite plus `plan-check.sh`/`owns-check.sh`, then decide on merge — not a review round 3
+**Next:** the round ceiling (2) is reached — read `## Fix round 3 result` below, run a targeted verification of guard delta `9d5f977..a430c88` against the "Targeted verification — FAILED" findings (quota metadata write/removal guard, `agent-send.sh`/`agent-attach.sh` Herdr-tab guard, finite mutating-entrypoint coverage test), re-run the full shell suite plus `plan-check.sh`/`owns-check.sh`, then decide on merge — not a review round 3
 
 <!--
 HOW TO USE THIS FILE
@@ -184,3 +184,45 @@ Engineer pushed `9d5f977`, closing both round-2 findings (delta `5329484..9d5f97
 
 Full suite: 19/19 `tests/*.test.sh` pass, `scripts/plan-check.sh` and `scripts/owns-check.sh` both
 pass. Full report: `reports/260831-2017-001-shell-engineer.md`.
+
+## Targeted verification — FAILED
+
+The linked-worktree/submodule resolver, lock/write choke points, and split-brain fix verified green;
+19/19 shell test files plus plan and ownership checks passed. Guard coverage was incomplete:
+
+- `quota_meta_write` mutated `$HARNESS_STATE/quota` without the guard; `agent-wait.sh` and
+  `quota-resume-poll.sh` reached it and removed quota metadata directly.
+- `agent-send.sh` and `agent-attach.sh` mutated live Herdr tabs without the guard.
+- The comment claiming every mutating entrypoint is guarded was therefore false.
+
+Directive: add one centralized, testable guard boundary covering these remaining mutators before any
+filesystem or Herdr mutation; inventory the finite mutating entrypoint list and add a regression test
+that fails if a listed entrypoint lacks the guard; preserve read-only commands; do not broaden into
+handoff or QA behavior.
+
+## Fix round 3 result
+
+Engineer pushed `a430c88`, closing both named gaps with TDD (failing test confirmed red against
+`9d5f977` for each, then the minimal fix, then green):
+
+- `scripts/quota-resume-lib.sh`: `quota_meta_write()` now calls `require_fleet_mutation_allowed` as
+  its first statement, matching `state_lock_acquire()`/`atomic_meta_write()`. Added
+  `quota_meta_remove(key)` - the one place quota metadata is deleted from, also guarded first -
+  replacing the raw `rm -f` that `agent-wait.sh` and `quota-resume-poll.sh` both used directly.
+- `scripts/agent-send.sh` / `scripts/agent-attach.sh`: each now calls
+  `require_fleet_mutation_allowed` immediately before its `herdr` mutating call (`agent prompt`,
+  `tab focus`), after the existing `require_meta` read.
+- `tests/quota-resume.test.sh`: rebuilt against an isolated fixture copy instead of sourcing `$ROOT`
+  directly - this task's own worktree is itself a linked Jarvis worktree, so the un-isolated version
+  would trip the new guard on `quota_meta_write` (same class of hazard `tests/state-lock.test.sh`
+  already isolates against). Added refusal cases for both `quota_meta_write` and `quota_meta_remove`.
+- `tests/root-project-worktree-guard.test.sh`: added a finite mutating-entrypoint coverage block -
+  `quota_meta_write`, `quota_meta_remove`, `atomic_meta_write`, `workspace_ensure`, `agent-send.sh`,
+  and `agent-attach.sh` (alongside the pre-existing `state_lock_acquire` case) are each run from
+  inside the linked-worktree fixture and asserted to refuse with the guard message and leave no
+  mutation behind, using a fake `herdr` in `PATH` that fails the test if actually invoked.
+
+Verified each new/changed assertion catches the regression it targets: stashing the five script
+changes back out reproduced the exact failures the targeted verification described, before the stash
+was restored and dropped. Full suite: 19/19 `tests/*.test.sh` pass, `scripts/plan-check.sh` and
+`scripts/owns-check.sh` both pass. Full report: `reports/260831-2017-001-shell-engineer.md`.
