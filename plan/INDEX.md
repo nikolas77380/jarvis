@@ -10,6 +10,7 @@ Owner: which agent, `user` when the decision is theirs, `lead` for the orchestra
 | id                                                         | task                 | status | owner | depends on | note                    |
 | ---------------------------------------------------------- | -------------------- | ------ | ----- | ---------- | ----------------------- |
 | [260831-2017-001](260831-2017-001-root-project-adapter.md) | root project adapter | done   | lead  | —          | PR #2 merged as 7bb4828 |
+| [260902-1204-001](260902-1204-001-macos-bootstrap.md)      | macos bootstrap      | open   | lead  | —          | —                       |
 
 ## Ordering that is not obvious
 
