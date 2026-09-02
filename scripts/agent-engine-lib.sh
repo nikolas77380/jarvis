@@ -113,8 +113,11 @@ role_capabilities() {
 CAPABILITY_PREFLIGHT_TIMEOUT_MS=${CAPABILITY_PREFLIGHT_TIMEOUT_MS:-180000}
 
 # Deterministic probe text sent BEFORE any substantive brief, to a session that has just started.
-# Requires the exact marker line as the reply's last non-blank line so capability_preflight_verdict
-# can parse it without guessing at prose.
+# The terminal snapshot capability_preflight_verdict parses always contains this prompt verbatim
+# (echoed by the terminal) followed by the agent's actual reply, and the prompt below necessarily
+# spells out the PASS/FAIL marker lines themselves as instructions — so the verdict is decided by the
+# LAST matching marker line in the snapshot, never by presence/absence or a count, so the agent's
+# genuine, most recent answer always wins over the instruction text that echoes ahead of it.
 capability_preflight_prompt() {
   local caps=$1 line
   printf 'CAPABILITY PREFLIGHT — verify access only; do not begin the task yet.\n\n'
@@ -133,17 +136,24 @@ capability_preflight_prompt() {
   printf 'CAPABILITY_PREFLIGHT_RESULT FAIL <capability>\n'
 }
 
-# Fail-closed by construction: passes only when the output contains EXACTLY one well-formed marker
-# line and it is PASS. Harmless agent chatter before or after the marker (a sign-off, a blank line,
-# terminal wrapper noise) never affects the verdict — only another marker line does. A FAIL marker, a
-# timeout with no reply, stray output with no marker at all, or two marker lines (duplicate PASS,
-# contradictory PASS+FAIL) are all failed probes.
+# Fail-closed by construction, and immune to the prompt's own literal marker lines being present in
+# the same snapshot: only the LAST line in the output that matches a well-formed marker is
+# authoritative, and it must be exactly PASS. The prompt's embedded PASS/FAIL example lines are
+# always echoed BEFORE the agent's real reply in a terminal snapshot, so the agent's genuine, most
+# recent answer is always the one this looks at — never a count, and never presence/absence of any
+# earlier marker line. A well-formed marker is `CAPABILITY_PREFLIGHT_RESULT PASS` with nothing else
+# on the line, or `CAPABILITY_PREFLIGHT_RESULT FAIL` alone or followed by a capability name — bare
+# FAIL (no capability named) must still count as FAIL, not be silently ignored. Harmless chatter
+# around the marker that does not itself look like a marker line never affects the verdict. A FAIL as
+# the last marker (bare or named), a timeout with no reply, stray output with no marker at all, or a
+# malformed marker line (extra text glued onto PASS) are all failed probes.
 capability_preflight_verdict() {
-  local output=$1 trimmed pass_count fail_count
+  local output=$1 trimmed last
   trimmed=$(printf '%s\n' "$output" | sed -e 's/[[:space:]]*$//')
-  pass_count=$(printf '%s\n' "$trimmed" | grep -cx 'CAPABILITY_PREFLIGHT_RESULT PASS' || true)
-  fail_count=$(printf '%s\n' "$trimmed" | grep -cx 'CAPABILITY_PREFLIGHT_RESULT FAIL .*' || true)
-  [ "${pass_count:-0}" -eq 1 ] && [ "${fail_count:-0}" -eq 0 ]
+  last=$(printf '%s\n' "$trimmed" \
+    | grep -E '^CAPABILITY_PREFLIGHT_RESULT PASS$|^CAPABILITY_PREFLIGHT_RESULT FAIL([[:space:]].*)?$' \
+    | tail -n 1) || true
+  [ "$last" = 'CAPABILITY_PREFLIGHT_RESULT PASS' ]
 }
 
 # Run the preflight against an already-started session, BEFORE the caller delivers the substantive
