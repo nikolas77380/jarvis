@@ -1,10 +1,12 @@
 # 260902-1204-001 — macos-bootstrap
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
+**Status:** in-review · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
 **Validation:** strict
 **Engine:** claude
-PR: none yet
-**Next:** dispatch shell-engineer with this card using `scripts/agent-spawn.sh 260902-1204-001`
+PR: #3
+**Next:** run `scripts/review-rounds.sh 260902-1204-001`, then dispatch round 1 of 2 against the
+full diff at `03dfb01` (PR #3) to the logic-tier reviewer — the diff touches `bin/jarvis`'s root
+resolution, a shared entry point, alongside the new `bootstrap.sh`.
 
 <!--
 HOW TO USE THIS FILE
