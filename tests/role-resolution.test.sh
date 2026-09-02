@@ -93,3 +93,75 @@ if grep -q 'ALPHA-SPECIFIC shared-engineer' "$SYSTEM_B"; then
 fi
 
 echo 'role resolution tests: ok'
+
+# --- Global JS/TS role fixtures (260902-1411-001) ---------------------------------------------
+# These checks run against the REAL harness-shared agents/ (not the fixture repo above), because
+# they assert properties of the actual global role files: valid frontmatter, the chosen model
+# tiers, deps-researcher's read-only tool set, routing language in RULES.md/orchestrator.md, and
+# the absence of Yavo-specific facts (repo names, paths, domain semantics) in the global roles.
+
+GLOBAL_ROLES=(
+  "nestjs-engineer:sonnet"
+  "nestjs-reviewer:opus"
+  "nextjs-engineer:sonnet"
+  "nextjs-reviewer:opus"
+  "deps-researcher:sonnet"
+)
+
+for entry in "${GLOBAL_ROLES[@]}"; do
+  role="${entry%%:*}"
+  want_model="${entry##*:}"
+  f="$ROOT/agents/$role.md"
+
+  [ -f "$f" ] || { echo "MISSING global role file: $f" >&2; exit 1; }
+
+  # Frontmatter validity: starts with '---', has a closing '---', and a name: field.
+  head -1 "$f" | grep -qx -- '---' || { echo "$role: frontmatter must start with ---" >&2; exit 1; }
+  awk 'NR==1{next} /^---$/{print NR; exit}' "$f" | grep -q . \
+    || { echo "$role: no closing --- for frontmatter" >&2; exit 1; }
+  grep -qE '^name: ' "$f" || { echo "$role: frontmatter missing name:" >&2; exit 1; }
+
+  # Model tiers, preserved from Yavo's role set.
+  grep -qE "^model: $want_model\$" "$f" \
+    || { echo "$role: expected model: $want_model" >&2; exit 1; }
+  grep -qE '^codex_model: gpt-5\.6-sol$' "$f" \
+    || { echo "$role: expected codex_model: gpt-5.6-sol" >&2; exit 1; }
+
+  # No Yavo-specific facts leaked into the global role: repo names, paths, DB/domain semantics.
+  if grep -qiE 'yavo|yavo-api|yavo-admin|yavo-landing|yavo-analyze-worker|nikolas77380' "$f"; then
+    echo "$role: contains a Yavo-specific string" >&2
+    exit 1
+  fi
+
+  # Raw `gh` is never used; gh-axi is the required wrapper wherever GitHub ops are mentioned.
+  if grep -qE '(^|[^-])\bgh (pr|issue|repo|api)\b' "$f"; then
+    echo "$role: uses raw \`gh\` instead of \`gh-axi\`" >&2
+    exit 1
+  fi
+done
+
+# deps-researcher is read-only: its declared tools must exclude Edit/Write, and it must say so.
+DR="$ROOT/agents/deps-researcher.md"
+grep -qE '^tools: ' "$DR" || { echo "deps-researcher: missing tools: line" >&2; exit 1; }
+if grep -E '^tools: ' "$DR" | grep -qE '\b(Edit|Write)\b'; then
+  echo "deps-researcher: tools line must not grant Edit or Write" >&2
+  exit 1
+fi
+grep -qi 'read-only' "$DR" || { echo "deps-researcher: must state it is read-only" >&2; exit 1; }
+grep -qi 'never install' "$DR" || { echo "deps-researcher: must state it never installs" >&2; exit 1; }
+
+# Global fallback behavior: agent-spawn.sh resolution order (project-local override first, then
+# harness-shared) applies to these roles too, exactly like the alpha/beta case above — assert the
+# actual resolver source still checks the project path before the shared one.
+grep -q 'projects/.*agents' "$ROOT/scripts/agent-spawn.sh" \
+  || { echo "agent-spawn.sh no longer appears to resolve a project-local agents/ override" >&2; exit 1; }
+
+# Routing language: RULES.md and orchestrator.md must require deps-researcher before adopting or
+# replacing an npm package and before a major upgrade, and state patch/minor routes there only on
+# compatibility/security uncertainty.
+for f in "$ROOT/RULES.md" "$ROOT/agents/orchestrator.md"; do
+  grep -qi 'deps-researcher' "$f" || { echo "$f: no deps-researcher routing language" >&2; exit 1; }
+  grep -qi 'major' "$f" || { echo "$f: no mention of major upgrades routing to deps-researcher" >&2; exit 1; }
+done
+
+echo 'global JS/TS role fixture tests: ok'

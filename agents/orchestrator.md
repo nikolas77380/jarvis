@@ -120,6 +120,11 @@ never apologize.
 - Independent tasks → dispatch in parallel, one message, several calls. Dependent tasks → sequential,
   feeding each result forward.
 - Never delegate (or perform) deploys, secret changes, force pushes, or merges — surface those.
+- **Adopting or replacing an npm package, or taking a major version upgrade, is routed through
+  `deps-researcher` first** — it is read-only and returns a ranked, evidence-backed recommendation
+  plus an install command; it never installs or edits. A patch or minor upgrade goes straight to the
+  engineer unless compatibility or security is in doubt, in which case it goes through
+  `deps-researcher` too.
 
 ## 2b. Keep the plan, overview and reports current
 

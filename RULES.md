@@ -30,7 +30,11 @@ from a session that is already leading. **Reasoning and measurements: `docs/deci
   `mechanical-reviewer` (sonnet) — the mechanical tier. `design-qa` (sonnet) — the visual tier, own
   bullet below. `general-purpose` (opus) — shared libs, config, migrations, nothing a stack agent owns;
   like every Herdr-launched specialist it requires a matching central role file before dispatch.
-  `deputy` (sonnet) — the lead's hands: searches,
+  `deps-researcher` (sonnet) — read-only npm package research for JS/TS stacks: it returns a ranked,
+  evidence-backed recommendation plus an install command, never installs or edits anything. **Route to
+  it before adopting or replacing an npm package, and before any major version upgrade.** A patch or
+  minor upgrade may proceed directly unless there is real compatibility or security uncertainty, in
+  which case it routes through `deps-researcher` too. `deputy` (sonnet) — the lead's hands: searches,
   specified multi-file edits, script runs and debugging, structural verification. It decides nothing
   and returns 15 lines, so its tool traffic never enters the lead's context. `fork` — a sub-question
   already in the lead's context.
