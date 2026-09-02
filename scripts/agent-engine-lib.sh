@@ -133,12 +133,17 @@ capability_preflight_prompt() {
   printf 'CAPABILITY_PREFLIGHT_RESULT FAIL <capability>\n'
 }
 
-# Fail-closed by construction: anything other than the exact PASS marker as the last non-blank line
-# (a FAIL marker, a timeout with no reply, stray output, an empty read) is a failed probe.
+# Fail-closed by construction: passes only when the output contains EXACTLY one well-formed marker
+# line and it is PASS. Harmless agent chatter before or after the marker (a sign-off, a blank line,
+# terminal wrapper noise) never affects the verdict — only another marker line does. A FAIL marker, a
+# timeout with no reply, stray output with no marker at all, or two marker lines (duplicate PASS,
+# contradictory PASS+FAIL) are all failed probes.
 capability_preflight_verdict() {
-  local output=$1 last
-  last=$(printf '%s\n' "$output" | sed -e 's/[[:space:]]*$//' | sed -e '/^$/d' | tail -n1)
-  [ "$last" = 'CAPABILITY_PREFLIGHT_RESULT PASS' ]
+  local output=$1 trimmed pass_count fail_count
+  trimmed=$(printf '%s\n' "$output" | sed -e 's/[[:space:]]*$//')
+  pass_count=$(printf '%s\n' "$trimmed" | grep -cx 'CAPABILITY_PREFLIGHT_RESULT PASS' || true)
+  fail_count=$(printf '%s\n' "$trimmed" | grep -cx 'CAPABILITY_PREFLIGHT_RESULT FAIL .*' || true)
+  [ "${pass_count:-0}" -eq 1 ] && [ "${fail_count:-0}" -eq 0 ]
 }
 
 # Run the preflight against an already-started session, BEFORE the caller delivers the substantive

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Roles declare required LIVE capabilities in their own frontmatter (`capabilities: figma`), never a
 # name-to-capability map hard-coded in the runtime. capability_preflight_verdict must be fail-closed:
-# only the exact PASS marker as the last non-blank line counts as a pass; everything else — a FAIL
-# marker, a timeout, stray output, silence — is a failure.
+# exactly one well-formed CAPABILITY_PREFLIGHT_RESULT marker must be present and it must be PASS.
+# Harmless output around the marker never affects the verdict; a FAIL marker, a timeout, no marker at
+# all, a malformed marker, or two marker lines (duplicate PASS, contradictory PASS+FAIL) all fail.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -40,10 +41,16 @@ cd "$REPO"
     || { echo "FAIL marker must not pass" >&2; exit 1; }
   ! capability_preflight_verdict '' \
     || { echo "empty output (timeout/no reply) must not pass" >&2; exit 1; }
-  ! capability_preflight_verdict $'CAPABILITY_PREFLIGHT_RESULT PASS\nsomething printed after it' \
-    || { echo "PASS not on the LAST line must not pass" >&2; exit 1; }
+  capability_preflight_verdict $'CAPABILITY_PREFLIGHT_RESULT PASS\nsomething harmless printed after it' \
+    || { echo "harmless trailing output after a well-formed PASS marker must still pass" >&2; exit 1; }
   ! capability_preflight_verdict 'garbage with no marker at all' \
     || { echo "no marker at all must not pass" >&2; exit 1; }
+  ! capability_preflight_verdict $'CAPABILITY_PREFLIGHT_RESULT PASS\nCAPABILITY_PREFLIGHT_RESULT PASS' \
+    || { echo "duplicate PASS markers must not pass" >&2; exit 1; }
+  ! capability_preflight_verdict $'CAPABILITY_PREFLIGHT_RESULT PASS\nCAPABILITY_PREFLIGHT_RESULT FAIL figma' \
+    || { echo "contradictory PASS and FAIL markers must not pass" >&2; exit 1; }
+  ! capability_preflight_verdict 'CAPABILITY_PREFLIGHT_RESULT PASS extra text on the marker line' \
+    || { echo "a malformed marker line must not pass" >&2; exit 1; }
 )
 
 echo 'capability preflight unit tests: ok'
