@@ -9,6 +9,7 @@ there is no backend abstraction or fallback.
 ## Commands
 
 ```text
+./bootstrap.sh                 # one-time macOS onboarding; see bootstrap.sh below
 bin/jarvis [claude|codex]
 bin/jarvis switch claude|codex
 bin/jarvis relaunch
@@ -26,6 +27,25 @@ scripts/agent-stop.sh <task-id>
 scripts/agent-attach.sh <task-id>
 scripts/session-start.sh
 ```
+
+## bootstrap.sh
+
+One-time macOS onboarding for a fresh clone. Homebrew is a required prerequisite and is never
+installed automatically — if missing, `bootstrap.sh` prints the official install command and stops.
+It installs `git` and `jq` with Homebrew only if missing (never upgrading an existing install),
+installs `herdr` and Claude Code with their official installers only if missing, links
+`~/.local/bin/jarvis` to this clone's `bin/jarvis`, and adds `~/.local/bin` to `PATH` via
+`~/.zprofile` (added exactly once). Dependency installs run before the symlink is published, so a
+failed install never leaves a broken `jarvis` command. An unexpected file already at the symlink
+destination is asked about interactively, and left untouched and the run fails when not
+interactive; a stale symlink from a previous clone location is repaired without asking. It finishes
+by verifying every installed tool, the symlink, PATH, and a read-only `bin/jarvis status`, then
+prints the two next commands (`claude`, `jarvis claude`) — it never authenticates or starts Jarvis.
+
+Because `~/.local/bin/jarvis` is a real symlink (not a copy or a shell alias), `bin/jarvis` resolves
+its own root through a symlink-following loop rather than a plain `dirname "${BASH_SOURCE[0]}"` —
+bash does not resolve symlinks in `BASH_SOURCE`, so invoking the script through an unresolved
+symlink would otherwise compute the wrong root and fail to source `scripts/`.
 
 ## State
 

@@ -59,7 +59,16 @@ docs/evidence.md               the measurements behind every rule, and what is N
 
 ## Initial setup
 
-1. Install `herdr`, `jq`, `git`, and Claude Code. Start the orchestrator from a Herdr-managed pane.
+1. On a fresh macOS clone of this repository, run `./bootstrap.sh`. It requires
+   [Homebrew](https://brew.sh) to already be installed (it never installs Homebrew itself — if
+   missing, it prints the official command and stops); installs `git` and `jq` with Homebrew only if
+   missing, never upgrading an existing install; installs `herdr` with the official
+   `curl -fsSL https://herdr.dev/install.sh | sh` if missing; installs Claude Code with the official
+   stable native installer `curl -fsSL https://claude.ai/install.sh | bash -s stable` if missing;
+   links `~/.local/bin/jarvis` to this clone's `bin/jarvis` and adds `~/.local/bin` to `PATH` via
+   `~/.zprofile`; and finishes by verifying the setup and printing the next two commands
+   (`claude` to authenticate, `jarvis claude` to start). It never authenticates or starts Jarvis
+   itself, and it is safe to re-run. Non-macOS platforms are not supported.
 2. Clone each managed project under its stable central name:
 
    ```bash
@@ -131,10 +140,12 @@ makes this worth the discipline.
 Agents run as visible, persistent Herdr tabs rather than ephemeral native subagents. Herdr is the
 only runtime; there is no tmux adapter or generic backend layer.
 
-The normal entry point is the persistent interactive Jarvis orchestrator:
+The normal entry point is the persistent interactive Jarvis orchestrator. `./bootstrap.sh` (see
+[Initial setup](#initial-setup)) already links `jarvis` onto `PATH` via `~/.local/bin`; `install-alias`
+below is the older, manual alternative for a checkout that was not bootstrapped:
 
 ```bash
-bin/jarvis install-alias   # once; then reload zsh
+bin/jarvis install-alias   # alternative to bootstrap.sh's symlink; once, then reload zsh
 jarvis                     # start with the configured default, or attach if already running
 jarvis claude              # explicitly start on Claude
 jarvis codex               # explicitly start on Codex

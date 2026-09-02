@@ -54,10 +54,21 @@ installer; the script creates `~/.local/bin/jarvis`; authentication is left inte
 
 ## Scope
 
-**Owns:** `bootstrap.sh`, `tests/bootstrap*.test.sh`, `README.md`, `docs/herdr-runtime.md`
+**Owns:** `bootstrap.sh`, `tests/bootstrap*.test.sh`, `README.md`, `docs/herdr-runtime.md`,
+`bin/jarvis` (root-resolution fix only — see note below; approved by user 2026-09-02)
 
 **Out of scope:** runtime behavior under `scripts/`, reviewer/QA flow, Linux/Windows support,
 automatic upgrades, Homebrew installation, Claude credentials/tokens, and user task files.
+
+**Discovered during implementation:** `bin/jarvis` computed its root via a plain
+`dirname "${BASH_SOURCE[0]}"`, which bash does not resolve through a symlink — so the literal
+`~/.local/bin/jarvis` symlink this task creates would, once invoked via `PATH`, compute the wrong
+root and fail to source `scripts/`. This is why the existing `bin/jarvis install-alias` command uses
+a shell alias with a baked-in path instead of a symlink. Confirmed with the user 2026-09-02: fix
+`bin/jarvis`'s root resolution (a small symlink-following loop) rather than change the symlink
+approach. This is the only change to `bin/jarvis`; its behavior is otherwise unchanged and covered
+by the existing `tests/jarvis-cli.test.sh` (still green) plus this task's own symlink-invocation
+coverage in `tests/bootstrap.test.sh` and `tests/bootstrap-interactive.test.sh`.
 
 ## Brief — shell-engineer
 
