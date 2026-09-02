@@ -1,10 +1,10 @@
 # 260902-1411-001 — global-js-agent-roles
 
-**Status:** open · **Owner:** general-purpose · **Blocks:** — · **Depends on:** —
+**Status:** open · **Owner:** deputy · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** dispatch `general-purpose` with `scripts/agent-spawn.sh 260902-1411-001`
+**Next:** dispatch `deputy` with `scripts/agent-spawn.sh 260902-1411-001`
 
 ## Goal
 
@@ -40,7 +40,7 @@ Preserve `model: sonnet` and `codex_model: gpt-5.6-sol` for engineers/researcher
 non-npm ecosystems, application code, deployment, secrets, and user-owned `tasks/plan.md` and
 `tasks/todo.md`.
 
-## Brief — general-purpose
+## Brief — deputy
 
 Read `RULES.md`, `agents/orchestrator.md`, the five source roles under `projects/yavo/agents/`, and
 the existing global NestJS roles. Implement the scope above as reusable global Jarvis roles. Do not
@@ -50,7 +50,7 @@ where useful so frontmatter, global fallback, model fields, read-only researcher
 language, and absence of Yavo-specific strings are mechanically checked.
 
 Use test-first changes for executable behavior. Do not edit anything under `projects/yavo/`.
-Commit, push, open a PR to `main`, write `reports/260902-1411-001-general-purpose.md`, and update this
+Commit, push, open a PR to `main`, write `reports/260902-1411-001-deputy.md`, and update this
 card and `plan/INDEX.md` at the implementation checkpoint.
 
 ## Done means
