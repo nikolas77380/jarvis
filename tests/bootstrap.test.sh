@@ -101,6 +101,28 @@ EOF
   chmod +x "$dir/bin/curl"
 }
 
+# Like fake_curl, but mimics what the REAL herdr/claude installers actually do: write their binary
+# into $HOME/.local/bin, not onto whatever directory the fixture happens to put on PATH. Regression
+# fixture for round 1 finding 1.
+fake_curl_to_home() {
+  local dir=$1
+  cat > "$dir/bin/curl" <<'EOF'
+#!/bin/sh
+: "${CURL_LOG:?}"
+URL=""
+for a in "$@"; do
+  case "$a" in http*) URL=$a ;; esac
+done
+echo "curl $URL" >> "$CURL_LOG"
+case "$URL" in
+  *herdr.dev*) echo "mkdir -p \"$HOME/.local/bin\"; printf '#!/bin/sh\necho herdr-fake\n' > \"$HOME/.local/bin/herdr\"; chmod +x \"$HOME/.local/bin/herdr\"" ;;
+  *claude.ai*) echo "mkdir -p \"$HOME/.local/bin\"; printf '#!/bin/sh\necho claude-fake\n' > \"$HOME/.local/bin/claude\"; chmod +x \"$HOME/.local/bin/claude\"" ;;
+  *) echo 'exit 1' ;;
+esac
+EOF
+  chmod +x "$dir/bin/curl"
+}
+
 # A trivial always-present tool, for pre-staging "already installed" fixtures.
 stage_present() {
   local dir=$1 name=$2
@@ -287,6 +309,93 @@ STATUS=0; run_bootstrap "$D" || STATUS=$?
 [ ! -L "$D/home/.local/bin/jarvis" ] || fail "unexpected-destination case replaced the file with a symlink non-interactively"
 [ "$(cat "$D/home/.local/bin/jarvis")" = "not jarvis" ] || fail "unexpected-destination case mutated the existing file"
 grep -qi 'confirmation' "$D/out.log" || fail "unexpected-destination case did not explain the refusal"
+[ ! -e "$D/home/.zprofile" ] || fail "unexpected-destination case wrote ~/.zprofile despite refusing the symlink (round 1 finding 4)"
 echo "case 9 (unexpected destination refusal): ok"
+
+# =========================================================================
+# 10. Round 1 finding 1 regression: the real herdr/claude installers place their binary in
+#    $HOME/.local/bin, not onto whatever directory happens to already be on PATH. bootstrap.sh must
+#    put $HOME/.local/bin on its own PATH before checking the installs, or the fresh-macOS path (the
+#    scenario the script exists for) fails closed right after a successful install.
+# =========================================================================
+D=$(new_case installer_writes_to_home)
+fake_uname "$D" Darwin
+fake_brew "$D"
+fake_curl_to_home "$D"
+
+STATUS=0; run_bootstrap "$D" || STATUS=$?
+[ "$STATUS" -eq 0 ] || { cat "$D/out.log" >&2; fail "installer-writes-to-\$HOME case exited $STATUS"; }
+[ -x "$D/home/.local/bin/herdr" ] || fail "installer-writes-to-\$HOME case: fake herdr was not installed"
+[ -x "$D/home/.local/bin/claude" ] || fail "installer-writes-to-\$HOME case: fake claude was not installed"
+grep -q '^  Start Jarvis: jarvis claude$' "$D/out.log" \
+  || fail "installer-writes-to-\$HOME case: did not reach the final next-actions banner"
+echo "case 10 (installers write to \$HOME/.local/bin, excluded from PATH): ok"
+
+# =========================================================================
+# 11. Round 1 finding 2 regression (a): a real DIRECTORY sits at the destination. mv onto a
+#    directory follows it and moves the temp symlink INSIDE instead of replacing it, so this must be
+#    rejected outright, non-interactively, with no litter left behind.
+# =========================================================================
+D=$(new_case dest_is_directory)
+fake_uname "$D" Darwin
+fake_brew "$D"
+fake_curl "$D"
+stage_present "$D" git
+stage_present "$D" jq
+stage_present "$D" herdr
+stage_present "$D" claude
+mkdir -p "$D/home/.local/bin/jarvis"
+
+STATUS=0; run_bootstrap "$D" || STATUS=$?
+[ "$STATUS" -ne 0 ] || fail "directory-destination case unexpectedly succeeded"
+[ -d "$D/home/.local/bin/jarvis" ] && [ ! -L "$D/home/.local/bin/jarvis" ] \
+  || fail "directory-destination case: the directory destination was disturbed"
+[ -z "$(ls -A "$D/home/.local/bin/jarvis")" ] \
+  || fail "directory-destination case: litter was left inside the directory: $(ls -A "$D/home/.local/bin/jarvis")"
+grep -qi 'directory' "$D/out.log" || fail "directory-destination case did not explain the refusal"
+echo "case 11 (directory destination refusal): ok"
+
+# =========================================================================
+# 12. Round 1 finding 2 regression (b): a stale symlink points at a DIRECTORY (not a file). This
+#    must repair silently like any other stale symlink, without moving the temp link inside the old
+#    target directory.
+# =========================================================================
+D=$(new_case symlink_to_directory)
+fake_uname "$D" Darwin
+fake_brew "$D"
+fake_curl "$D"
+stage_present "$D" git
+stage_present "$D" jq
+stage_present "$D" herdr
+stage_present "$D" claude
+mkdir -p "$D/home/.local/bin" "$D/old_target_dir"
+ln -s "$D/old_target_dir" "$D/home/.local/bin/jarvis"
+
+STATUS=0; run_bootstrap "$D" || STATUS=$?
+[ "$STATUS" -eq 0 ] || { cat "$D/out.log" >&2; fail "symlink-to-directory case exited $STATUS"; }
+[ "$(readlink "$D/home/.local/bin/jarvis")" = "$D/clone/bin/jarvis" ] \
+  || fail "symlink-to-directory case: stale symlink to a directory was not repaired"
+[ -z "$(ls -A "$D/old_target_dir")" ] \
+  || fail "symlink-to-directory case: litter was left in the old target directory: $(ls -A "$D/old_target_dir")"
+echo "case 12 (stale symlink to a directory repaired): ok"
+
+# =========================================================================
+# 13. Round 1 finding 3 regression: with ZDOTDIR set, zsh reads $ZDOTDIR/.zprofile, not
+#    $HOME/.zprofile. The PATH export must land where zsh will actually read it.
+# =========================================================================
+D=$(new_case zdotdir)
+fake_uname "$D" Darwin
+fake_brew "$D"
+fake_curl "$D"
+mkdir -p "$D/home/customzdotdir"
+
+export ZDOTDIR="$D/home/customzdotdir"
+STATUS=0; run_bootstrap "$D" || STATUS=$?
+unset ZDOTDIR
+[ "$STATUS" -eq 0 ] || { cat "$D/out.log" >&2; fail "ZDOTDIR case exited $STATUS"; }
+grep -Fqx 'export PATH="$HOME/.local/bin:$PATH"' "$D/home/customzdotdir/.zprofile" \
+  || fail "ZDOTDIR case: PATH export did not land in \$ZDOTDIR/.zprofile"
+[ ! -e "$D/home/.zprofile" ] || fail "ZDOTDIR case: PATH export was written to \$HOME/.zprofile instead of \$ZDOTDIR/.zprofile"
+echo "case 13 (ZDOTDIR respected for PATH export): ok"
 
 echo "bootstrap tests: ok"

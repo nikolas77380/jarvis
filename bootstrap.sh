@@ -6,7 +6,13 @@
 set -euo pipefail
 
 SOURCE="${BASH_SOURCE[0]}"
+SOURCE_HOPS=0
 while [ -h "$SOURCE" ]; do
+  SOURCE_HOPS=$((SOURCE_HOPS + 1))
+  if [ "$SOURCE_HOPS" -gt 40 ]; then
+    echo "error: symlink cycle resolving bootstrap.sh's own location" >&2
+    exit 1
+  fi
   SOURCE_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
   SOURCE="$(readlink "$SOURCE")"
   case "$SOURCE" in
@@ -16,6 +22,7 @@ while [ -h "$SOURCE" ]; do
 done
 ROOT="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 JARVIS_BIN="$ROOT/bin/jarvis"
+ZPROFILE="${ZDOTDIR:-$HOME}/.zprofile"
 JARVIS_LINK="$HOME/.local/bin/jarvis"
 
 HOMEBREW_INSTALL_URL='https://brew.sh'
@@ -57,6 +64,19 @@ ensure_brew_pkg() {
   command -v "$pkg" >/dev/null 2>&1 || die "$pkg installation did not put $pkg on PATH"
 }
 
+local_bin_already_on_path() {
+  case ":$PATH:" in
+    *":$HOME/.local/bin:"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Exports $HOME/.local/bin onto THIS PROCESS's PATH so command -v sees a fresh herdr/claude install
+# right after it runs. Separate from ensure_path_export, which persists the export for future shells.
+ensure_local_bin_on_path() {
+  local_bin_already_on_path || { PATH="$HOME/.local/bin:$PATH"; export PATH; }
+}
+
 ensure_herdr() {
   if command -v herdr >/dev/null 2>&1; then
     info "ok: herdr already installed ($(command -v herdr))"
@@ -78,13 +98,12 @@ ensure_claude() {
 }
 
 ensure_path_export() {
-  local zprofile="$HOME/.zprofile"
-  if [ -f "$zprofile" ] && grep -Fqx "$PATH_EXPORT_LINE" "$zprofile"; then
-    info "ok: PATH export already present in $zprofile"
+  if [ -f "$ZPROFILE" ] && grep -Fqx "$PATH_EXPORT_LINE" "$ZPROFILE"; then
+    info "ok: PATH export already present in $ZPROFILE"
     return 0
   fi
-  printf '\n%s\n' "$PATH_EXPORT_LINE" >> "$zprofile"
-  info "added PATH export to $zprofile"
+  printf '\n%s\n' "$PATH_EXPORT_LINE" >> "$ZPROFILE"
+  info "added PATH export to $ZPROFILE"
 }
 
 # Confirm before replacing an unexpected file at $JARVIS_LINK. Only ever consulted when the
@@ -113,12 +132,19 @@ ensure_symlink() {
       return 0
     fi
     info "repairing $JARVIS_LINK (was: $current)"
+  elif [ -d "$JARVIS_LINK" ]; then
+    die "$JARVIS_LINK is a directory, not a file bootstrap.sh can replace. Remove or rename it, then re-run bootstrap.sh."
   elif [ -e "$JARVIS_LINK" ]; then
     confirm_replace "$JARVIS_LINK" || die "refusing to replace $JARVIS_LINK without confirmation"
   fi
   tmp_link="$local_bin/.jarvis.bootstrap.$$"
+  trap 'rm -f "$tmp_link"' EXIT
   ln -s "$JARVIS_BIN" "$tmp_link"
+  # rm -f, not a bare mv: JARVIS_LINK may be a symlink pointing at a directory, and mv onto such a
+  # destination follows it and moves tmp_link INSIDE that directory instead of replacing the link.
+  rm -f "$JARVIS_LINK"
   mv "$tmp_link" "$JARVIS_LINK"
+  trap - EXIT
   info "linked $JARVIS_LINK -> $JARVIS_BIN"
 }
 
@@ -134,12 +160,11 @@ verify() {
   [ "$(readlink "$JARVIS_LINK")" = "$JARVIS_BIN" ] \
     || die "verification failed: $JARVIS_LINK does not point to $JARVIS_BIN"
   echo "  jarvis symlink: $JARVIS_LINK -> $JARVIS_BIN"
-  case ":$PATH:" in
-    *":$HOME/.local/bin:"*)
-      echo "  PATH: $HOME/.local/bin is already on PATH" ;;
-    *)
-      echo "  PATH: $HOME/.local/bin added to ~/.zprofile (open a new terminal, or run: source ~/.zprofile)" ;;
-  esac
+  if [ "$LOCAL_BIN_WAS_ON_PATH" = 1 ]; then
+    echo "  PATH: $HOME/.local/bin is already on PATH"
+  else
+    echo "  PATH: $HOME/.local/bin added to $ZPROFILE (open a new terminal, or run: source '$ZPROFILE')"
+  fi
   "$JARVIS_LINK" status || die "verification failed: jarvis status did not run cleanly"
 }
 
@@ -147,13 +172,16 @@ main() {
   require_macos
   require_brew
 
+  if local_bin_already_on_path; then LOCAL_BIN_WAS_ON_PATH=1; else LOCAL_BIN_WAS_ON_PATH=0; fi
+  ensure_local_bin_on_path
+
   ensure_brew_pkg git
   ensure_brew_pkg jq
   ensure_herdr
   ensure_claude
 
-  ensure_path_export
   ensure_symlink
+  ensure_path_export
 
   verify
 

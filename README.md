@@ -66,7 +66,7 @@ docs/evidence.md               the measurements behind every rule, and what is N
    `curl -fsSL https://herdr.dev/install.sh | sh` if missing; installs Claude Code with the official
    stable native installer `curl -fsSL https://claude.ai/install.sh | bash -s stable` if missing;
    links `~/.local/bin/jarvis` to this clone's `bin/jarvis` and adds `~/.local/bin` to `PATH` via
-   `~/.zprofile`; and finishes by verifying the setup and printing the next two commands
+   `${ZDOTDIR:-~}/.zprofile`; and finishes by verifying the setup and printing the next two commands
    (`claude` to authenticate, `jarvis claude` to start). It never authenticates or starts Jarvis
    itself, and it is safe to re-run. Non-macOS platforms are not supported.
 2. Clone each managed project under its stable central name:

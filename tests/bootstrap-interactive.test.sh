@@ -124,4 +124,28 @@ STATUS=0; run_bootstrap_pty "$D" n || STATUS=$?
 [ "$(cat "$D/home/.local/bin/jarvis")" = "not jarvis" ] || fail "confirm-no case: destination content was mutated"
 echo "case 2 (interactive confirm declined): ok"
 
+# =========================================================================
+# 3. Round 1 finding 2 regression: a real DIRECTORY sits at the destination, and a confirmation
+#    reply is available. mv onto a directory follows it and moves the temp symlink INSIDE instead of
+#    replacing it, so this must be rejected outright before ever asking for confirmation, not routed
+#    through confirm_replace as if replacement would work.
+# =========================================================================
+D=$(new_case confirm_yes_directory)
+fake_uname_darwin "$D"
+never_call "$D" brew
+never_call "$D" curl
+stage_present "$D" git
+stage_present "$D" jq
+stage_present "$D" herdr
+stage_present "$D" claude
+mkdir -p "$D/home/.local/bin/jarvis"
+
+STATUS=0; run_bootstrap_pty "$D" y || STATUS=$?
+[ "$STATUS" -ne 0 ] || fail "directory-destination case unexpectedly succeeded"
+[ -d "$D/home/.local/bin/jarvis" ] && [ ! -L "$D/home/.local/bin/jarvis" ] \
+  || fail "directory-destination case: the directory destination was disturbed"
+[ -z "$(ls -A "$D/home/.local/bin/jarvis")" ] \
+  || fail "directory-destination case: litter was left inside the directory: $(ls -A "$D/home/.local/bin/jarvis")"
+echo "case 3 (directory destination rejected outright, even when confirmed): ok"
+
 echo "bootstrap interactive tests: ok"

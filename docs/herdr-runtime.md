@@ -35,17 +35,26 @@ installed automatically — if missing, `bootstrap.sh` prints the official insta
 It installs `git` and `jq` with Homebrew only if missing (never upgrading an existing install),
 installs `herdr` and Claude Code with their official installers only if missing, links
 `~/.local/bin/jarvis` to this clone's `bin/jarvis`, and adds `~/.local/bin` to `PATH` via
-`~/.zprofile` (added exactly once). Dependency installs run before the symlink is published, so a
-failed install never leaves a broken `jarvis` command. An unexpected file already at the symlink
-destination is asked about interactively, and left untouched and the run fails when not
-interactive; a stale symlink from a previous clone location is repaired without asking. It finishes
-by verifying every installed tool, the symlink, PATH, and a read-only `bin/jarvis status`, then
-prints the two next commands (`claude`, `jarvis claude`) — it never authenticates or starts Jarvis.
+`${ZDOTDIR:-~}/.zprofile` (added exactly once — `ZDOTDIR` is honored because zsh reads its
+`.zprofile` from there when set, not from `~/.zprofile`). `~/.local/bin` is also exported onto
+bootstrap.sh's own process PATH before the installer steps run, since the official herdr/Claude Code
+installers place their binary there and `command -v` must see it immediately after a fresh install.
+Dependency installs run before the symlink is published, so a failed install never leaves a broken
+`jarvis` command; the symlink is in turn published before the `PATH` export is written, so a refused
+replacement leaves the profile untouched. An unexpected file already at the symlink destination is
+asked about interactively, and left untouched and the run fails when not interactive; a stale
+symlink from a previous clone location is repaired without asking; a real directory at the
+destination is always rejected outright, without asking, since replacing a directory is not a safe
+`mv`. It finishes by verifying every installed tool, the symlink, PATH, and a read-only
+`bin/jarvis status`, then prints the two next commands (`claude`, `jarvis claude`) — it never
+authenticates or starts Jarvis.
 
-Because `~/.local/bin/jarvis` is a real symlink (not a copy or a shell alias), `bin/jarvis` resolves
-its own root through a symlink-following loop rather than a plain `dirname "${BASH_SOURCE[0]}"` —
-bash does not resolve symlinks in `BASH_SOURCE`, so invoking the script through an unresolved
-symlink would otherwise compute the wrong root and fail to source `scripts/`.
+Because `~/.local/bin/jarvis` is a real symlink (not a copy or a shell alias), `bin/jarvis` (and
+`bootstrap.sh` itself) resolves its own root through a symlink-following loop, capped at 40 hops,
+rather than a plain `dirname "${BASH_SOURCE[0]}"` — bash does not resolve symlinks in
+`BASH_SOURCE`, so invoking the script through an unresolved symlink would otherwise compute the
+wrong root and fail to source `scripts/`; the cap turns a symlink cycle into a clear failure instead
+of a hang.
 
 ## State
 
