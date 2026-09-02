@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** open · **Owner:** deputy · **Blocks:** — · **Depends on:** —
+**Status:** needs-decision · **Owner:** user · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** dispatch deputy with the inventory brief under ## Brief — deputy
+**Next:** user chooses fail-closed preflight only or preflight plus a new credential-profile broker
 
 <!--
 HOW TO USE THIS FILE
@@ -70,7 +70,25 @@ Inventory names exact implementation files, reusable primitives, and executable 
 
 ## Decisions still open
 
-None for inventory. The invariant and degraded-result semantics are decided above.
+None. Capabilities are declared in role frontmatter; the rule applies to every capability-gated
+specialist; recovery creates a new generation/session and never feeds proxy evidence into the
+blocked run. Implementation must reuse a real runtime probe, not infer authorization from config.
+
+## Inventory checkpoint
+
+No preflight exists. `scripts/agent-spawn.sh` and `scripts/agent-review.sh` launch without MCP/auth
+checks; `agents/design-qa.md` only asks the agent to report BLOCKED. Enforcement belongs in those
+scripts plus role/orchestrator rules. Before implementation, identify the existing primitive that
+can prove a target session's live capability before its substantive brief is delivered, and how the
+runtime selects a different authenticated session/profile after failure.
+
+The follow-up found that no live-auth probe or credential-profile selection exists. `engine_start`
+only observes coarse terminal state and `engine_prompt` immediately sends the substantive brief.
+Authentication failure appears only inside the child conversation. Existing primitives can support
+a deterministic probe prompt and parsed success/failure marker before releasing the real brief.
+However, `agent-switch.sh` selects only Claude versus Codex; it cannot select a different credential
+identity. Automatic recovery to an authenticated agent therefore requires a new profile broker with
+credential enumeration and launch-time profile selection.
 
 ## Rounds
 
