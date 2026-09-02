@@ -22,7 +22,7 @@ PROJECT=$(card_project "$CARD")
 ENGINE=$(engine_resolve "$EXPLICIT_ENGINE" "$CARD" "$PROJECT")
 case "$AGENT" in ''|*[!a-zA-Z0-9._-]*) die "task card has an invalid Owner: $AGENT" ;; esac
 case "$PROJECT" in ''|*[!a-zA-Z0-9._-]*) die "task card has an invalid Project: $PROJECT" ;; esac
-PROJECT_ROOT="$HARNESS_ROOT/projects/$PROJECT"
+PROJECT_ROOT=$(project_root_path "$PROJECT")
 [ -d "$PROJECT_ROOT/.git" ] || [ -f "$PROJECT_ROOT/.git" ] \
   || die "project clone is unavailable: $PROJECT_ROOT"
 PROJECT_ROOT=$(cd "$PROJECT_ROOT" && pwd -P)

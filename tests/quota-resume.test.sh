@@ -1,11 +1,17 @@
-#!/usr/bin/env bash
+# Sourced from an isolated copy, never straight from $ROOT: this test file's own checkout may
+# itself be a linked Jarvis task worktree (as it is under a task worktree), and sourcing
+# herdr-runtime-lib.sh straight from $ROOT would then trip the require_fleet_mutation_allowed guard
+# on quota_meta_write below - a false failure of this test, not of the guard. See the same note in
+# tests/state-lock.test.sh.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/scripts"
+cp "$ROOT/scripts/herdr-runtime-lib.sh" "$ROOT/scripts/quota-resume-lib.sh" "$TMP/scripts/"
 export HARNESS_STATE_DIR="$TMP/state"
-. "$ROOT/scripts/herdr-runtime-lib.sh"
-. "$ROOT/scripts/quota-resume-lib.sh"
+. "$TMP/scripts/herdr-runtime-lib.sh"
+. "$TMP/scripts/quota-resume-lib.sh"
 
 printf '%s\n' "You've hit your monthly spend limit; your session limit resets 2:10am (Europe/Sofia)" | quota_message_matches
 if printf '%s\n' 'ordinary task completed' | quota_message_matches; then
@@ -23,4 +29,27 @@ META=$(quota_meta_write task-1 task claude "$ISO_EPOCH" $'monthly spend limit\nr
 grep -qx 'blocked_reason=quota' "$META"
 grep -qx "resume_at=$ISO_EPOCH" "$META"
 grep -qx 'excerpt=monthly spend limit resets soon' "$META"
+
+quota_meta_remove task-1
+[ ! -e "$META" ] || { echo 'quota_meta_remove did not delete the quota file' >&2; exit 1; }
+
+# Both mutators go through the same guard as every other fleet-mutating choke point.
+export IS_JARVIS_LINKED_WORKTREE=true JARVIS_LINKED_WORKTREE_PATH=/fake/worktree
+if (quota_meta_write task-2 task claude "$ISO_EPOCH" excerpt) >/dev/null 2>"$TMP/err"; then
+  echo 'quota_meta_write unexpectedly succeeded while flagged as a linked Jarvis task worktree' >&2
+  exit 1
+fi
+grep -q 'linked Jarvis task worktree' "$TMP/err" \
+  || { echo "quota_meta_write did not refuse with the guard message: $(cat "$TMP/err")" >&2; exit 1; }
+[ ! -e "$HARNESS_STATE/quota/task-2.meta" ] \
+  || { echo 'quota_meta_write created a file despite refusing' >&2; exit 1; }
+
+if (quota_meta_remove task-1) >/dev/null 2>"$TMP/err"; then
+  echo 'quota_meta_remove unexpectedly succeeded while flagged as a linked Jarvis task worktree' >&2
+  exit 1
+fi
+grep -q 'linked Jarvis task worktree' "$TMP/err" \
+  || { echo "quota_meta_remove did not refuse with the guard message: $(cat "$TMP/err")" >&2; exit 1; }
+export IS_JARVIS_LINKED_WORKTREE=false JARVIS_LINKED_WORKTREE_PATH=
+
 printf 'quota-resume tests: ok\n'

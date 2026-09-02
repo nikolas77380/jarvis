@@ -31,7 +31,7 @@ echo
 echo 'ACTIVE PLAN CARDS'
 active_rows() { grep -E '\| *(open|in-progress|in-review|blocked|needs-decision) *\|' "$1" || true; }
 if [ -n "$PROJECT" ]; then
-  INDEX="$HARNESS_ROOT/projects/$PROJECT/plan/INDEX.md"
+  INDEX="$(project_root_path "$PROJECT")/plan/INDEX.md"
   if [ -f "$INDEX" ]; then
     ROWS=$(active_rows "$INDEX")
     [ -n "$ROWS" ] && printf '%s\n' "$ROWS" || echo '(none)'
@@ -40,6 +40,13 @@ if [ -n "$PROJECT" ]; then
   fi
 else
   FOUND=0
+  ROOT_INDEX="$HARNESS_ROOT/plan/INDEX.md"
+  if [ -f "$ROOT_INDEX" ]; then
+    FOUND=1
+    echo '-- jarvis --'
+    ROWS=$(active_rows "$ROOT_INDEX")
+    [ -n "$ROWS" ] && printf '%s\n' "$ROWS" || echo '(none)'
+  fi
   for INDEX in "$HARNESS_ROOT"/projects/*/plan/INDEX.md; do
     [ -f "$INDEX" ] || continue
     FOUND=1

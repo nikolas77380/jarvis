@@ -3,13 +3,55 @@
 
 set -euo pipefail
 
+die() { echo "error: $*" >&2; exit 1; }
+
 HARNESS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+IS_JARVIS_LINKED_WORKTREE=false
+JARVIS_LINKED_WORKTREE_PATH=""
+# A root-project (reserved id `jarvis`) task worktree is a linked worktree that carries the
+# harness's own scripts/, so the BASH_SOURCE-derived root above would otherwise resolve to the
+# worktree itself instead of the main checkout — silently forking a second fleet (its own
+# .harness-worktrees/.harness-state, invisible to the real runtime).
+#
+# `.git` is a file rather than a directory for BOTH a linked worktree and a submodule checkout, so
+# that alone does not distinguish them — treating a submodule as a linked worktree once resolved
+# `HARNESS_ROOT` into `<super>/.git/modules/<name>`, a path that is not a checkout at all. The
+# distinguishing property: a linked worktree's `--git-dir` (its own `.git/worktrees/<name>`) differs
+# from its `--git-common-dir` (the main checkout's `.git`); a submodule's git-dir and common-dir are
+# the same path (it owns its own history, not a linked view of another). Only the worktree shape is
+# re-resolved; a submodule is left as an ordinary standalone checkout.
+if [ -f "$HARNESS_ROOT/.git" ]; then
+  GIT_DIR=$(git -C "$HARNESS_ROOT" rev-parse --path-format=absolute --git-dir 2>/dev/null) || GIT_DIR=""
+  GIT_COMMON_DIR=$(git -C "$HARNESS_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || GIT_COMMON_DIR=""
+  if [ -n "$GIT_DIR" ] && [ -n "$GIT_COMMON_DIR" ] && [ "$GIT_DIR" != "$GIT_COMMON_DIR" ]; then
+    CANDIDATE_ROOT="$(cd "$GIT_COMMON_DIR/.." && pwd)"
+    # Sanity-check the resolved path is actually a harness checkout before trusting it — a linked
+    # worktree of some other repository that happens to nest under this one is not our concern, and
+    # must never be silently adopted as HARNESS_ROOT.
+    if [ -f "$CANDIDATE_ROOT/scripts/herdr-runtime-lib.sh" ]; then
+      IS_JARVIS_LINKED_WORKTREE=true
+      JARVIS_LINKED_WORKTREE_PATH="$HARNESS_ROOT"
+      HARNESS_ROOT="$CANDIDATE_ROOT"
+    fi
+  fi
+  unset GIT_DIR GIT_COMMON_DIR CANDIDATE_ROOT
+fi
 HARNESS_STATE="${HARNESS_STATE_DIR:-$HARNESS_ROOT/.harness-state}"
 HARNESS_WORKTREES="${HARNESS_WORKTREE_DIR:-$HARNESS_ROOT/.harness-worktrees}"
 HARNESS_HERDR_SESSION="${HARNESS_HERDR_SESSION:-harness}"
-export HARNESS_ROOT HARNESS_STATE HARNESS_WORKTREES HARNESS_HERDR_SESSION
+export HARNESS_ROOT HARNESS_STATE HARNESS_WORKTREES HARNESS_HERDR_SESSION IS_JARVIS_LINKED_WORKTREE JARVIS_LINKED_WORKTREE_PATH
 
-die() { echo "error: $*" >&2; exit 1; }
+# The lead operates the fleet only from the canonical checkout; a specialist working in its own
+# linked Jarvis task worktree must never fork a second fleet from there. Every entry point that
+# mutates shared runtime state (worktrees, Herdr tabs, task metadata, the inbox/decisions ledgers)
+# calls this before doing so — see state_lock_acquire in harness-state-lib.sh, the single choke
+# point all of them already pass through. Read-only inspection (task_card, plan_card_matches,
+# project_root_path, and every script that only reads them) is unaffected: it is meant to work from
+# a linked worktree, resolving against the same canonical state a lead session would see.
+require_fleet_mutation_allowed() {
+  [ "$IS_JARVIS_LINKED_WORKTREE" = false ] \
+    || die "refusing to mutate the fleet from a linked Jarvis task worktree ($JARVIS_LINKED_WORKTREE_PATH) — run this from the canonical checkout at $HARNESS_ROOT instead"
+}
 
 require_tools() {
   command -v herdr >/dev/null 2>&1 || die "herdr is required"
@@ -22,12 +64,34 @@ valid_task_id() {
   [ "${#1}" -le 96 ]
 }
 
-# Plan cards live per-project, under projects/<project>/plan/ — never in a shared plan/ at the
-# harness root. Each project brings its own plan/claims/review-rounds machinery scoped to its own
-# git repo and worktrees, so a card's location is what tells us which project it belongs to.
+# Reserved project id: the harness root checkout itself, so Jarvis can dispatch work against its own
+# runtime through the same plan/worktree/review pipeline nested projects use, without a permanent
+# self-clone under projects/. A nested projects/jarvis would physically collide with this reserved
+# id, so it is refused rather than silently misread (see card_project).
+JARVIS_ROOT_PROJECT_ID=jarvis
+
+# The one resolver for a project id's physical checkout path. Every caller that needs a project's
+# location (role/worktree resolution, plan discovery, onboarding) MUST go through this — never test
+# `[ "$project" = jarvis ]` inline, so the root case can't drift out of sync between callers.
+project_root_path() {
+  local project=$1
+  if [ "$project" = "$JARVIS_ROOT_PROJECT_ID" ]; then
+    printf '%s\n' "$HARNESS_ROOT"
+  else
+    printf '%s\n' "$HARNESS_ROOT/projects/$project"
+  fi
+}
+
+# Plan cards live per-project, under projects/<project>/plan/, plus the reserved root project's own
+# plan/ directly under the harness root (project_root_path's one exception) — never any other shared
+# plan/. Each project brings its own plan/claims/review-rounds machinery scoped to its own git repo
+# and worktrees, so a card's location is what tells us which project it belongs to.
 plan_card_matches() {
   local id=$1
-  find "$HARNESS_ROOT/projects" -mindepth 3 -maxdepth 3 -type f -path '*/plan/*' -name "$id*.md" ! -name 'TEMPLATE.md' 2>/dev/null
+  if [ -d "$HARNESS_ROOT/plan" ]; then
+    find "$HARNESS_ROOT/plan" -mindepth 1 -maxdepth 1 -type f -name "$id*.md" ! -name 'TEMPLATE.md' 2>/dev/null || true
+  fi
+  find "$HARNESS_ROOT/projects" -mindepth 3 -maxdepth 3 -type f -path '*/plan/*' -name "$id*.md" ! -name 'TEMPLATE.md' 2>/dev/null || true
 }
 
 task_card() {
@@ -41,21 +105,24 @@ task_card() {
 card_project() {
   local card=$1 rel project
   case "$card" in
+    "$HARNESS_ROOT/plan/"*) printf '%s\n' "$JARVIS_ROOT_PROJECT_ID"; return ;;
     "$HARNESS_ROOT/projects/"*) rel=${card#"$HARNESS_ROOT/projects/"} ;;
-    *) die "plan card is not under projects/<project>/plan: $card" ;;
+    *) die "plan card is not under projects/<project>/plan or the root plan/: $card" ;;
   esac
   project=${rel%%/*}
   [ -n "$project" ] && [ "$project" != "$rel" ] || die "could not derive project from card path: $card"
+  [ "$project" != "$JARVIS_ROOT_PROJECT_ID" ] \
+    || die "project id '$JARVIS_ROOT_PROJECT_ID' is reserved for the harness root — projects/$JARVIS_ROOT_PROJECT_ID collides with it: $card"
   printf '%s\n' "$project"
 }
 
 # Two different projects can both instantiate a stack-named role (e.g. nextjs-engineer) with
 # genuinely different content — different app path, different rules. A project-local role always
 # wins over the harness-shared one, so it is never possible for one project's role file to shadow
-# another's.
+# another's. For the reserved root project this collapses to the harness's own agents/ on both legs.
 role_path() {
   local project=$1 agent=$2 role
-  role="$HARNESS_ROOT/projects/$project/agents/$agent.md"
+  role="$(project_root_path "$project")/agents/$agent.md"
   [ -f "$role" ] || role="$HARNESS_ROOT/agents/$agent.md"
   printf '%s\n' "$role"
 }
@@ -131,6 +198,7 @@ codex_isolated_environment() {
 
 workspace_ensure() {
   local record="$HARNESS_STATE/herdr-workspace.meta" out workspace tmp
+  require_fleet_mutation_allowed
   mkdir -p "$HARNESS_STATE"
   if [ -f "$record" ] && [ ! -L "$record" ]; then
     [ "$(meta_get "$record" session)" = "$HARNESS_HERDR_SESSION" ] \
@@ -183,6 +251,7 @@ role_field() {
 
 atomic_meta_write() {
   local destination=$1 tmp
+  require_fleet_mutation_allowed
   mkdir -p "$HARNESS_STATE"
   tmp=$(mktemp "$HARNESS_STATE/.task-meta.XXXXXX")
   cat > "$tmp"

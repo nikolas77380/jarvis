@@ -6,7 +6,7 @@ trap 'rm -rf "$TMP"' EXIT
 
 REPO="$TMP/harness"
 mkdir -p "$REPO/scripts" "$REPO/templates" "$REPO/projects/demo"
-cp "$ROOT/scripts/onboard-project.sh" "$REPO/scripts/"
+cp "$ROOT/scripts/onboard-project.sh" "$ROOT/scripts/herdr-runtime-lib.sh" "$REPO/scripts/"
 cp "$ROOT/templates/plan-task-card.md" "$ROOT/templates/plan-INDEX.md" "$ROOT/templates/OVERVIEW.md" "$ROOT/templates/reports-README.md" "$REPO/templates/"
 
 cd "$REPO"

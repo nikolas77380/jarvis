@@ -70,9 +70,10 @@ docs/evidence.md               the measurements behind every rule, and what is N
    Each clone owns its project-specific `CLAUDE.md` or `AGENTS.md`. Do not copy the central harness
    scripts or memory into it.
 3. Onboard each project into the plan pipeline — **inside its own clone**, never at the harness
-   root; there is no shared `plan/` at the top level, because `scripts/herdr-runtime-lib.sh` resolves
-   a task card by scanning every `projects/*/plan/`, and each project's own worktrees only ever
-   contain what its own repo commits:
+   root: `scripts/herdr-runtime-lib.sh` resolves a task card by scanning every `projects/*/plan/`
+   plus the harness root's own `plan/`, and that root `plan/` is reserved for project id `jarvis`
+   (the harness dogfooding itself through the same pipeline) — never for an ordinary nested project.
+   Each project's own worktrees only ever contain what its own repo commits:
 
    ```bash
    scripts/onboard-project.sh bridgeks
