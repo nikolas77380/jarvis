@@ -4,11 +4,10 @@
 **Validation:** strict
 **Engine:** claude
 PR: #3
-**Next:** hand PR #3 back to the engineer for the round-1 fix delta with
-`scripts/agent-review.sh 260902-1204-001 shell-engineer --brief-file plan/260902-1204-001-macos-bootstrap.md --engine claude`,
-briefing it on findings 1-3 under `## Review round 1` (findings 4-6 are its call, each either fixed
-or declined on the card with a reason). Round 1 of 2 is spent: the next reviewer dispatch is the
-LAST one, reviews only `c29e209..<fix tip>`, and re-runs every check in full.
+**Next:** hand PR #3 to the reviewer for round 2 of 2 (the last round) with
+`scripts/agent-review.sh 260902-1204-001 shell-reviewer --brief-file plan/260902-1204-001-macos-bootstrap.md --engine claude`,
+briefing it to review only `c29e209..015dd91` (the round-1 fix delta) but re-run every check in
+full. Full account of the fix: `reports/260902-1204-001-shell-engineer.md`, "round 2" section.
 
 ## What and why
 
@@ -163,6 +162,35 @@ under `Owns:` with the recorded user approval).
 6. The symlink-resolution loop has no iteration cap (`bootstrap.sh:9-16`, `bin/jarvis:4-11`), so a
    symlink cycle spins forever instead of failing. `bin/jarvis` is the shared entry point every
    command goes through, which makes the counter worth having.
+
+### Fix delta — applied by shell-engineer, fix tip `015dd91`
+
+All six findings closed; nothing declined. Full account:
+`reports/260902-1204-001-shell-engineer.md`, "round 2" section.
+
+1. **PATH exclusion:** fixed. Added `ensure_local_bin_on_path`, called in `main` right after
+   `require_brew`, before any installer step — exports `$HOME/.local/bin` onto the running process's
+   PATH only (no profile write). Regression: `tests/bootstrap.test.sh` case 10, with a new
+   `fake_curl_to_home` fixture matching the real installers' behavior; confirmed to fail on the
+   pre-fix script, pass on the fix.
+2. **`mv` onto a directory:** fixed. `ensure_symlink` now rejects a real directory outright with
+   `die`, before ever asking for confirmation, and does an explicit `rm -f "$JARVIS_LINK"` before the
+   `mv` so a symlink-to-directory can't be followed either. Regressions: `tests/bootstrap.test.sh`
+   case 12 (stale symlink to a directory) and `tests/bootstrap-interactive.test.sh` case 3 (real
+   directory, confirmed interactively — this is the case that actually reproduces the reviewer's
+   "confirmed but not replaced, litter left behind" scenario; the non-interactive directory case was
+   already refused pre-fix via `confirm_replace`, so it wasn't a true regression case on its own).
+   Both confirmed to fail pre-fix, pass on the fix.
+3. **`ZDOTDIR`:** fixed. `ZPROFILE="${ZDOTDIR:-$HOME}/.zprofile"` used everywhere the script
+   previously hardcoded `$HOME/.zprofile`. Regression: `tests/bootstrap.test.sh` case 13, confirmed to
+   fail pre-fix, pass on the fix.
+4. **Profile mutated before symlink refusal:** fixed. Reordered `main` so `ensure_symlink` runs
+   before `ensure_path_export`. Regression: assertion added to case 9 that `~/.zprofile` doesn't
+   exist after refusal, confirmed to fail pre-fix.
+5. **Temp symlink leak on `mv` failure:** fixed. Narrow `trap 'rm -f "$tmp_link"' EXIT` around the
+   stage-then-swap, cleared right after success. No other trap exists in the script.
+6. **Unbounded symlink-resolution loop:** fixed. 40-hop cap added to both `bootstrap.sh` and
+   `bin/jarvis`.
 
 ### Confirmed sound — do not re-litigate in round 2
 
