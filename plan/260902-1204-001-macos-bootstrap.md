@@ -98,6 +98,13 @@ or `tasks/todo.md`. Commit, push, open a PR to `main`, and write
 - `shellcheck bootstrap.sh` passes when ShellCheck is available; absence is reported as unverified.
 - PR is open against `main`, with the engineer report committed.
 
+## Implementation checkpoint
+
+PR #3 is open at implementation tip `03dfb01`; the branch card/report commit is `c29e209`.
+The engineer reports 21/21 shell tests passing, `shellcheck bootstrap.sh` clean, and plan/ownership
+checks green. The implementation also fixes `bin/jarvis` root resolution through the installed
+symlink, which is why the full diff requires the logic-tier reviewer.
+
 ## Decisions still open
 
 None. All installer authority, channel, upgrade, shell-profile, conflict, authentication, and final
