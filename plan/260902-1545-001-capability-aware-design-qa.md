@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** in-review · **Owner:** shell-reviewer · **Blocks:** — · **Depends on:** —
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #5
-**Next:** run scripts/review-rounds.sh 260902-1545-001, then dispatch shell-reviewer round 2 of 2 on code delta 4cd51b4..9c72c33
+**Next:** hand task to shell-engineer for the two targeted round-2 parser findings, then verify only that hunk without a third full review
 
 <!--
 HOW TO USE THIS FILE
@@ -155,3 +155,20 @@ rejects missing, malformed, duplicate, FAIL, or contradictory markers. Only
 `scripts/agent-engine-lib.sh` and `tests/capability-preflight.test.sh` changed. Engineer reran the
 full 24-file shell suite, plan/ownership checks, and shellcheck successfully. Report-only tip is
 `b0ab6ed`; reports remain outside review scope.
+
+## Review round 2
+
+**Verdict:** REQUEST_CHANGES. Full suite 24/24, shellcheck, plan-check, and owns-check passed, but the
+reviewer reproduced two defects through the real functions:
+
+1. The terminal snapshot echoes the delivered preflight prompt, which itself contains literal PASS
+   and FAIL marker lines. The parser counts those along with the agent reply, so an authenticated
+   PASS becomes `pass_count=2`, `fail_count=1` and every capability-gated role is rejected.
+2. A bare `CAPABILITY_PREFLIGHT_RESULT FAIL` is not counted because the matcher requires a trailing
+   space; combined with PASS it can be accepted, violating fail-closed contradictory-marker rules.
+
+The two-round full-review ceiling is reached. The next run may edit only the preflight
+prompt/reply-boundary parser and its focused regression tests. Verification must exercise the real
+prompt echo plus reply path and bare FAIL; it is targeted hunk verification, not a third full review.
+Reviewer report exists uncommitted in the task worktree at
+`reports/260902-1545-001-shell-reviewer.md`.
