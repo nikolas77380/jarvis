@@ -1,10 +1,11 @@
 # 260902-1411-001 — global-js-agent-roles
 
-**Status:** open · **Owner:** deputy · **Blocks:** — · **Depends on:** —
+**Status:** in-review · **Owner:** deputy · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
-PR: none yet
-**Next:** dispatch `deputy` with `scripts/agent-spawn.sh 260902-1411-001`
+PR: #4 — https://github.com/nikolas77380/jarvis/pull/4
+**Next:** get `APPROVE` on PR #4 (logic-tier review of RULES.md/orchestrator.md routing changes plus
+the five role files), then merge to `main`.
 
 ## Goal
 
@@ -72,3 +73,11 @@ user through the `grill-me` interview.
 
 Append a `## Review round N` section per round: verdict, findings, fixes, and deliberately deferred
 items with reasons. The review ceiling is two rounds.
+
+## Implementation checkpoint (deputy) — 2026-09-02
+
+All five global roles written (two existing NestJS roles rewritten from verbatim Yavo copies to
+templated global roles; three new: nextjs-engineer, nextjs-reviewer, deps-researcher). RULES.md and
+agents/orchestrator.md updated with deps-researcher routing. tests/role-resolution.test.sh extended.
+`bash tests/role-resolution.test.sh`, `bash scripts/plan-check.sh`, `bash scripts/owns-check.sh` all
+pass. Full account: `reports/260902-1411-001-deputy.md`. PR #4 open against `main`, awaiting review.
