@@ -83,18 +83,18 @@ agents/orchestrator.md updated with deps-researcher routing. tests/role-resoluti
 `bash tests/role-resolution.test.sh`, `bash scripts/plan-check.sh`, `bash scripts/owns-check.sh` all
 pass. Full account: `reports/260902-1411-001-deputy.md`. PR #4 open against `main`, awaiting review.
 
-## Reconciliation checkpoint (deputy) — 2026-09-03
+## Reconciliation checkpoint (deputy) - 2026-09-03
 
 Merged `origin/main` (which now carries merged PR #5, `b7f3706`) into `harness/260902-1411-001` as
 `5a71d25`. Merge, not rebase: the branch is already pushed under an open PR and force-pushes are not
 pre-authorized.
 
-- `RULES.md` and `agents/orchestrator.md` auto-merged with no conflict — both concerns are present
+- `RULES.md` and `agents/orchestrator.md` auto-merged with no conflict - both concerns are present
   and neither was dropped: the `deps-researcher` routing bullets (RULES.md:33-37,
   orchestrator.md:131-134) and main's anti-proxy / capability-preflight rules (RULES.md:51-58,
   orchestrator.md:99-102).
 - `plan/INDEX.md` was the only conflict, and only because main widened the table columns to fit the
-  new `260902-1545-001` row. Resolved to main's version, which is a strict superset — the
+  new `260902-1545-001` row. Resolved to main's version, which is a strict superset - the
   `260902-1411-001` row is byte-identical in both.
 - Everything else the branch had added (OVERVIEW entry, this card, the two 1204 artifacts, the
   deputy report) is already byte-identical on `main`, so it left the PR diff entirely.
