@@ -48,6 +48,17 @@ from a session that is already leading. **Reasoning and measurements: `docs/deci
   ephemeral native subagent tool. Use `agent-spawn.sh`; observe with `agent-state.sh` and
   `agent-peek.sh`; steer with `agent-send.sh`; stop with `agent-stop.sh`. `session-start.sh` is the
   read-only recovery view at the beginning of a lead session.
+- **The lead never fetches or absorbs external-source evidence on a specialist's behalf.** A Figma
+  node, a URL, a screenshot, or any other externally-sourced payload a task needs is retrieved by the
+  dispatched specialist itself, live, from inside its own session — never fetched by the lead and
+  relayed into a brief. Proxying it bloats lead context with content the lead cannot verify and lets
+  stale or unauthenticated evidence pass as if it had been checked. A role that requires live access
+  to an external capability declares it in its own frontmatter (`capabilities: figma`), never in a
+  name-to-capability map hard-coded in the runtime; `agent-spawn.sh`, `agent-review.sh` and
+  `agent-switch.sh` each run a deterministic capability preflight on the freshly started session
+  before delivering the substantive brief. A probe that fails, times out, or is silent is fail-closed:
+  the brief is never delivered and the task is never recorded as dispatched — route it to a fresh
+  session whose preflight succeeds instead of relaunching the same one.
 - **Hand a task from its engineer to a reviewer with `scripts/agent-review.sh <task-id>
   <reviewer-role> --brief-file <path> [--engine claude|codex]`.** It reuses the SAME worktree and
   branch the engineer already has open (a fresh `agent-spawn.sh` call refuses — one task id owns one
