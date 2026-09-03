@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
+**Status:** in-review · **Owner:** deputy · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #5
-**Next:** hand task to shell-engineer for the two targeted round-2 parser findings, then verify only that hunk without a third full review
+**Next:** hand task to deputy for targeted verification of the parser hunk at bb05695 and the two round-2 reproductions only
 
 <!--
 HOW TO USE THIS FILE
@@ -172,3 +172,10 @@ prompt/reply-boundary parser and its focused regression tests. Verification must
 prompt echo plus reply path and bare FAIL; it is targeted hunk verification, not a third full review.
 Reviewer report exists uncommitted in the task worktree at
 `reports/260902-1545-001-shell-reviewer.md`.
+
+**Targeted fix:** `bb05695` changes verdict parsing to use the last well-formed marker in the echoed
+snapshot, so prompt examples precede and cannot override the agent's answer. Bare FAIL is recognized.
+Focused tests construct snapshots from the real prompt plus appended PASS/FAIL replies. Engineer
+reports 24/24 shell test files, shellcheck, plan-check, and owns-check green. The reviewer report was
+committed with the fix. The only remaining work permitted by the round ceiling is independent
+verification of this parser hunk and the two exact reproductions; no full PR reread.
