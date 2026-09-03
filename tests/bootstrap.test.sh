@@ -4,6 +4,7 @@
 # reachable — only what a case explicitly stages), and its own copy of the clone (bootstrap.sh,
 # bin/jarvis, and the libs bin/jarvis sources). Nothing here ever touches the real machine.
 set -euo pipefail
+unset ZDOTDIR
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Physically resolved (`pwd -P`): bootstrap.sh itself resolves its own location through `cd -P`, and
@@ -135,6 +136,7 @@ run_bootstrap() {
   HOME="$dir/home" PATH="$dir/bin" BOOTSTRAP_TEST_BIN="$dir/bin" \
     BREW_LOG="${BREW_LOG:-$dir/brew.log}" CURL_LOG="${CURL_LOG:-$dir/curl.log}" \
     BREW_FAIL="${BREW_FAIL:-}" HERDR_FAIL="${HERDR_FAIL:-}" CLAUDE_FAIL="${CLAUDE_FAIL:-}" \
+    ZDOTDIR="${ZDOTDIR:-$dir/home}" \
     bash "$dir/$clone_name/bootstrap.sh" </dev/null >"$dir/out.log" 2>&1 || status=$?
   return "$status"
 }
@@ -389,9 +391,7 @@ fake_brew "$D"
 fake_curl "$D"
 mkdir -p "$D/home/customzdotdir"
 
-export ZDOTDIR="$D/home/customzdotdir"
-STATUS=0; run_bootstrap "$D" || STATUS=$?
-unset ZDOTDIR
+STATUS=0; ZDOTDIR="$D/home/customzdotdir" run_bootstrap "$D" || STATUS=$?
 [ "$STATUS" -eq 0 ] || { cat "$D/out.log" >&2; fail "ZDOTDIR case exited $STATUS"; }
 grep -Fqx 'export PATH="$HOME/.local/bin:$PATH"' "$D/home/customzdotdir/.zprofile" \
   || fail "ZDOTDIR case: PATH export did not land in \$ZDOTDIR/.zprofile"

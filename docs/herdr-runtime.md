@@ -53,8 +53,10 @@ Because `~/.local/bin/jarvis` is a real symlink (not a copy or a shell alias), `
 `bootstrap.sh` itself) resolves its own root through a symlink-following loop, capped at 40 hops,
 rather than a plain `dirname "${BASH_SOURCE[0]}"` — bash does not resolve symlinks in
 `BASH_SOURCE`, so invoking the script through an unresolved symlink would otherwise compute the
-wrong root and fail to source `scripts/`; the cap turns a symlink cycle into a clear failure instead
-of a hang.
+wrong root and fail to source `scripts/`. The cap bounds the script's own resolution loop; it is not
+what protects against a cyclic invocation path, since the OS already refuses that at `exec` (a
+cycle produces "Too many levels of symbolic links" before bash ever reads the script, with or
+without the loop) — the cap is a cheap belt-and-suspenders guard on the loop itself.
 
 ## State
 

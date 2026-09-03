@@ -5,6 +5,7 @@
 # `pty` module (already a project dependency; see scripts/agent-spend.sh and scripts/context-size.sh
 # for other Python usage in this repo) and feeds the confirmation reply through it.
 set -euo pipefail
+unset ZDOTDIR
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(cd "$(mktemp -d)" && pwd -P)"
@@ -79,6 +80,7 @@ PY
 run_bootstrap_pty() {
   local dir=$1 reply=$2 status=0
   HOME="$dir/home" PATH="$dir/bin" BOOTSTRAP_TEST_BIN="$dir/bin" \
+    ZDOTDIR="${ZDOTDIR:-$dir/home}" \
     "$PYTHON3" "$TMP/pty_driver.py" "$reply" bash "$dir/clone/bootstrap.sh" \
     >"$dir/out.log" 2>&1 || status=$?
   return "$status"
