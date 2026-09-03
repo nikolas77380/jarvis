@@ -4,8 +4,9 @@
 **Validation:** strict
 **Engine:** claude
 PR: #4 — https://github.com/nikolas77380/jarvis/pull/4
-**Next:** get `APPROVE` on PR #4 (logic-tier review of RULES.md/orchestrator.md routing changes plus
-the five role files), then merge to `main`.
+**Next:** dispatch round 1 logic-tier review of PR #4 with
+`scripts/agent-review.sh 260902-1411-001 reviewer --brief-file <path>` (review tip 5a71d25; the
+diff is the eight `Owns:` files only), then merge to `main` on `APPROVE`.
 
 ## Goal
 
@@ -81,3 +82,24 @@ templated global roles; three new: nextjs-engineer, nextjs-reviewer, deps-resear
 agents/orchestrator.md updated with deps-researcher routing. tests/role-resolution.test.sh extended.
 `bash tests/role-resolution.test.sh`, `bash scripts/plan-check.sh`, `bash scripts/owns-check.sh` all
 pass. Full account: `reports/260902-1411-001-deputy.md`. PR #4 open against `main`, awaiting review.
+
+## Reconciliation checkpoint (deputy) — 2026-09-03
+
+Merged `origin/main` (which now carries merged PR #5, `b7f3706`) into `harness/260902-1411-001` as
+`5a71d25`. Merge, not rebase: the branch is already pushed under an open PR and force-pushes are not
+pre-authorized.
+
+- `RULES.md` and `agents/orchestrator.md` auto-merged with no conflict — both concerns are present
+  and neither was dropped: the `deps-researcher` routing bullets (RULES.md:33-37,
+  orchestrator.md:131-134) and main's anti-proxy / capability-preflight rules (RULES.md:51-58,
+  orchestrator.md:99-102).
+- `plan/INDEX.md` was the only conflict, and only because main widened the table columns to fit the
+  new `260902-1545-001` row. Resolved to main's version, which is a strict superset — the
+  `260902-1411-001` row is byte-identical in both.
+- Everything else the branch had added (OVERVIEW entry, this card, the two 1204 artifacts, the
+  deputy report) is already byte-identical on `main`, so it left the PR diff entirely.
+
+PR #4 now diffs against `main` as exactly the eight files this card claims under `Owns:`
+(929 insertions, 167 deletions). Full test suite: 24/24 pass, including main's four new
+capability/MCP suites and `tests/anti-proxy-rule.test.sh` against the merged rule files.
+`plan-check.sh` and `owns-check.sh` pass. Ready for round 1 logic-tier review.
