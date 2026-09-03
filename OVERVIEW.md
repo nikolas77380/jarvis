@@ -7,3 +7,7 @@ Keep **8-10 entries** here; move older ones to `docs/overview-archive/YYYY-MM.md
 `scripts/overview-append.sh`, never by reading the file first.
 
 <!-- entries: new ones are inserted directly below this line -->
+
+## 2026-09-02 — Root-project adapter merged
+
+PR #2 was targeted-verified after the two-round ceiling and squash-merged as 7bb4828. Jarvis now treats reserved project id `jarvis` as the harness root, supports root plan cards, and refuses fleet mutation from linked Jarvis task worktrees while keeping read-only inspection available.
