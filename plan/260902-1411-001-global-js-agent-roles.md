@@ -4,9 +4,10 @@
 **Validation:** strict
 **Engine:** claude
 PR: #4 — https://github.com/nikolas77380/jarvis/pull/4
-**Next:** dispatch round 1 logic-tier review of PR #4 with
-`scripts/agent-review.sh 260902-1411-001 reviewer --brief-file <path>` (review tip 5a71d25; the
-diff is the eight `Owns:` files only), then merge to `main` on `APPROVE`.
+**Next:** hand PR #4 back to the engineer for the round-1 fixes with
+`scripts/agent-review.sh 260902-1411-001 deputy --brief-file <path>`, briefing blockers 1-2 and
+should-fix 3-8 from `reports/260902-1411-001-reviewer.md` (fix round reviews the delta from tip
+`e24cef9`; round 2 of 2 is the last one available).
 
 ## Goal
 
@@ -103,3 +104,60 @@ PR #4 now diffs against `main` as exactly the eight files this card claims under
 (929 insertions, 167 deletions). Full test suite: 24/24 pass, including main's four new
 capability/MCP suites and `tests/anti-proxy-rule.test.sh` against the merged rule files.
 `plan-check.sh` and `owns-check.sh` pass. Ready for round 1 logic-tier review.
+
+## Review round 1 - 2026-09-03 (reviewer, logic tier)
+
+**Verdict: REQUEST_CHANGES.** Reviewed `b7f3706..e24cef9` (the brief named tip `5a71d25`; the pushed
+PR tip is `e24cef9`, two doc-only plan commits later). Full account:
+`reports/260902-1411-001-reviewer.md`.
+
+Verified independently: full suite 24/24, `plan-check.sh`, `owns-check.sh`, `review-rounds.sh` all
+pass; the deputy's "eight files, 929/167 at 5a71d25" claim is exact; no Yavo regression, since
+`projects/yavo/agents/` carries project-local overrides for all five roles and `role_path()` prefers
+them. Three of the new test assertions were mutation-verified and do catch real breakage (M1-M3).
+
+**Blockers**
+
+1. `tools:` frontmatter is inert. `engine_start()` (`scripts/agent-engine-lib.sh:197-215`) reads only
+   `model`/`effort`/`codex_model`/`capabilities` and launches with `--permission-mode
+   bypassPermissions` (line 210) - no tool restriction. So `deps-researcher`'s read-only authority,
+   the property the user explicitly chose, is prose only, while
+   `tests/role-resolution.test.sh:133-139` certifies it as a guarantee. `Bash` in the same `tools:`
+   line would defeat it even if the field were honored. Either enforce the field in `engine_start()`
+   or drop it and stop testing it as a restriction.
+2. `agents/nestjs-reviewer.md:41-42` instructs a read-only reviewer to run migrations, contradicting
+   `:53` ("never run a migration") in the same file. Copy-paste leak from `nestjs-engineer.md:33-35`,
+   where it is correct. Delete the sentence.
+
+**Should fix**
+
+3. Both new reviewers emit `Verdict: pass | changes required` (`nestjs-reviewer.md:170`,
+   `nextjs-reviewer.md:173`) instead of `APPROVE` / `REQUEST_CHANGES` - the token `RULES.md:116`,
+   `RULES.md:141` and `orchestrator.md:157,188` gate "done" and merge on, and the vocabulary every
+   other reviewer role in the harness uses. No script parses verdicts (verified), so the break lands
+   on the lead.
+4. Both new reviewers drop the `reports/<task>-<agent>.md` file and the <=15-line return that
+   `RULES.md:190-191` mandates and `reviewer.md:57` states. Round-2 briefs then have no findings path
+   to cite.
+5. Both engineer roles say "get a recommendation from `deps-researcher` first"
+   (`nestjs-engineer.md:89-90`, `nextjs-engineer.md:82-83`) - a dispatch an engineer cannot perform.
+   Should be "stop and report that the task needs one; the lead dispatches it."
+6. The `middleware.ts` constraint (`nextjs-engineer.md:62-63`, `nextjs-reviewer.md:77`) keys the
+   highest-blast-radius guard on a filename Next.js 16 renamed to `proxy.ts`. A `proxy.ts` change
+   escapes both the approval constraint and the reviewer's first-priority check.
+7. `next lint` (`nextjs-engineer.md:198`) was removed in Next 16, and `next build` no longer lints -
+   so the verify order silently loses lint coverage on a current project.
+8. The new "global fallback" assertion (`tests/role-resolution.test.sh:156-157`) greps a `die`
+   message, not the resolver (`role_path()` lives in `herdr-runtime-lib.sh:123-128`). Measured: M4
+   broke the real resolution and was caught by the pre-existing fixture test, not by this assertion;
+   M5 changed only the error-message wording and failed the suite. Zero coverage, one false-failure
+   mode. Delete it.
+
+**Consider:** 9. `.claude/stack.yml` survives at `deps-researcher.md:25` as a named project-local
+path in a global role, and the deputy report overstates it as "dropped"; the Yavo-string test is
+name-based and cannot see it. 10. `deps-researcher`'s verdict has no durable home, though
+`nestjs-engineer.md:302-304` requires it "on record" - the lead should paste it into the card.
+
+**Not checked:** adaptation fidelity line-by-line against `projects/yavo/agents/` (absent from this
+worktree), the roles in a live dispatch, the codex engine, and CI (this repo has no `.github/` and
+PR #4 has no checks configured).
