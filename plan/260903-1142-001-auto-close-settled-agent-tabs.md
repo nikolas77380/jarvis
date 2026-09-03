@@ -1,10 +1,10 @@
 # 260903-1142-001 — auto-close-settled-agent-tabs
 
-**Status:** needs-decision · **Owner:** user · **Blocks:** — · **Depends on:** —
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** user confirms whether acknowledgement of the durable done event gates automatic tab close
+**Next:** dispatch shell-engineer with the implementation brief under ## Implementation brief
 
 <!--
 HOW TO USE THIS FILE
@@ -73,8 +73,8 @@ Inventory names executable tests for ordering, generation safety, idempotence, a
 
 ## Decisions still open
 
-Whether acknowledgement of the durable done event gates close. Recommended: yes. Only `done`
-auto-closes; `blocked` stays open because existing resume and quota flows reuse it in place.
+None. User confirmed `persist done event -> acknowledge -> generation-guarded close exact tab`.
+Only `done` auto-closes; `blocked` stays open because resume and quota flows reuse it in place.
 
 ## Inventory findings
 
@@ -85,6 +85,27 @@ event. It must re-read metadata and verify the recorded generation/fingerprint b
 newer replacement tab cannot be killed. Close failure leaves completion/event state intact and is
 observable and retryable. Tests cover persist-before-close ordering, generation safety,
 idempotence, and cleanup failure. Never auto-close `blocked`.
+
+## Implementation brief — shell-engineer
+
+Implement task 260903-1142-001 in its existing worktree. Add an explicit settled-tab cleanup path
+whose only trigger is acknowledgement by the lead of a durably persisted `agent-done` event. Do not
+close on detection, event emission, unread listing, drain alone, `blocked`, `idle`, timeout, or quota
+state. The persisted event must carry or resolve an immutable identity sufficient to prove the exact
+session/tab/generation/fingerprint that produced it. Immediately before close, re-read current task
+metadata under the appropriate lock and close only if it still matches that settled identity; a
+newer spawn, switch, review handoff, or relaunch makes cleanup a safe no-op. Reuse the exact-tab close
+primitive, but do not mark a newer generation stopped. Cleanup is idempotent. A close failure must
+leave the completion event acknowledged/durable, keep retry information observable, return non-zero
+from the cleanup action, and permit a later retry. Worktrees and branches are not deleted. Add or
+update focused shell tests for: persist-before-close ordering; no close before acknowledgement;
+exact tab/session target; generation/fingerprint mismatch; double acknowledgement/cleanup;
+close failure then successful retry; and no cleanup for blocked. Document the lifecycle contract in
+the appropriate harness runtime documentation and role rules only where operators need it. Inspect
+existing event schema and helpers, but do not redesign unrelated inbox behavior. Do not touch
+application repos or files owned by active tasks 260902-1204-001 and 260902-1411-001. Run all
+relevant shell tests, shellcheck, plan-check, and owns-check. Commit, push, open a PR, write
+`reports/260903-1142-001-shell-engineer.md`, and return <=15 lines.
 
 ## Rounds
 
