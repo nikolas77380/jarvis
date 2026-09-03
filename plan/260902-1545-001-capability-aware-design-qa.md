@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** needs-decision · **Owner:** user · **Blocks:** — · **Depends on:** —
+**Status:** done · **Owner:** lead · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #5
-**Next:** user approves or declines merge of PR #5
+**Next:** none — PR #5 merged as b7f3706
 
 <!--
 HOW TO USE THIS FILE
