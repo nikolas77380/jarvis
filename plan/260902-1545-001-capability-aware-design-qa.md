@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** in-review · **Owner:** deputy · **Blocks:** — · **Depends on:** —
+**Status:** needs-decision · **Owner:** user · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #5
-**Next:** hand task to deputy for targeted verification of the parser hunk at bb05695 and the two round-2 reproductions only
+**Next:** user approves or declines merge of PR #5
 
 <!--
 HOW TO USE THIS FILE
@@ -190,3 +190,11 @@ FAIL alone and PASS followed by bare FAIL must FAIL. Confirm malformed markers r
 that last-marker semantics cannot let prompt examples decide the verdict. Run the focused test file
 and shellcheck for the changed parser/test files. Read-only: make no edits. Return at most 15 lines
 with `TARGETED_VERIFY: PASS|FAIL`, commands and results, and any exact failing case.
+
+## Targeted verification result
+
+`TARGETED_VERIFY: PASS` at PR #5 tip `bb05695`. The deputy independently reproduced: real prompt
+echo plus PASS returns PASS; real prompt echo plus FAIL returns FAIL; bare FAIL returns FAIL; PASS
+followed by bare FAIL returns FAIL; malformed PASS is rejected. The focused capability-preflight
+test exits zero and shellcheck is clean. No further review rounds are permitted or required. PR #5
+is ready for the user's merge decision.
