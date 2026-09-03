@@ -179,3 +179,14 @@ Focused tests construct snapshots from the real prompt plus appended PASS/FAIL r
 reports 24/24 shell test files, shellcheck, plan-check, and owns-check green. The reviewer report was
 committed with the fix. The only remaining work permitted by the round ceiling is independent
 verification of this parser hunk and the two exact reproductions; no full PR reread.
+
+## Targeted verification brief — deputy
+
+Read only the code delta affecting `capability_preflight_verdict` and its focused tests at PR #5 tip
+`bb05695`. Do not reread or review the full PR; the two-round ceiling is reached. Independently run
+the real-function reproductions for: (1) the actual `capability_preflight_prompt` echoed before an
+appended authenticated PASS reply must PASS, and before an appended FAIL reply must FAIL; (2) bare
+FAIL alone and PASS followed by bare FAIL must FAIL. Confirm malformed markers remain rejected and
+that last-marker semantics cannot let prompt examples decide the verdict. Run the focused test file
+and shellcheck for the changed parser/test files. Read-only: make no edits. Return at most 15 lines
+with `TARGETED_VERIFY: PASS|FAIL`, commands and results, and any exact failing case.
