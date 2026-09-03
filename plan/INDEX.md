@@ -13,7 +13,7 @@ Owner: which agent, `user` when the decision is theirs, `lead` for the orchestra
 | [260902-1204-001](260902-1204-001-macos-bootstrap.md)               | macos bootstrap               | in-progress | shell-engineer | 260831-2017-001 | PR #3 · fixing round 1               |
 | [260902-1411-001](260902-1411-001-global-js-agent-roles.md)         | global js agent roles         | in-review   | deputy         | —               | PR #4 · five adapted global JS roles |
 | [260902-1545-001](260902-1545-001-capability-aware-design-qa.md)    | capability aware design qa    | done        | lead           | —               | PR #5 merged as b7f3706              |
-| [260903-1142-001](260903-1142-001-auto-close-settled-agent-tabs.md) | auto close settled agent tabs | open        | lead           | —               | —                                    |
+| [260903-1142-001](260903-1142-001-auto-close-settled-agent-tabs.md) | auto close settled agent tabs | open        | deputy         | —               | inventory lifecycle cleanup          |
 
 ## Ordering that is not obvious
 

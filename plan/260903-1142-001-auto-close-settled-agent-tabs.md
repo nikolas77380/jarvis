@@ -1,10 +1,10 @@
 # 260903-1142-001 — auto-close-settled-agent-tabs
 
-**Status:** open · **Owner:** {{AGENT}} · **Blocks:** — · **Depends on:** —
+**Status:** open · **Owner:** deputy · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** <the literal next dispatch or command — see the rules below>
+**Next:** dispatch deputy with the read-only lifecycle inventory under ## Brief — deputy
 
 <!--
 HOW TO USE THIS FILE
@@ -42,31 +42,38 @@ whole session.
 
 ## What and why
 
-What this delivers, and why it is worth doing now. If a decision was already taken on the user's
-behalf, record it here **with its reason** — this is the only place that survives the session that
-took it.
+Automatically close a specialist's exact recorded Herdr tab after its terminal result has been
+captured and made recoverable. Completed tabs currently accumulate and require manual user cleanup.
+Cleanup must never race result delivery, close a replacement generation, or hide a report before the
+lead can consume it.
 
 ## Scope
 
-Files and packages in scope. Then, explicitly:
+Inventory the settle/wait/event-delivery lifecycle, metadata generation guards, and exact-tab close
+primitive. Name the actual implementation seam before code changes.
 
-**Out of scope:** what must not be touched, including files a concurrent agent owns.
+**Out of scope:** implementation during inventory; deleting worktrees or branches; closing
+orchestrator tabs; application repos; files owned by tasks 260902-1204-001 and 260902-1411-001.
 
-## Brief — {{AGENT}}
+## Brief — deputy
 
-The text to hand down verbatim: instruction, file paths, the boundary rule that applies, what is out
-of scope, and "done" as commands. Written here rather than left in the conversation so the next
-session dispatches it instead of rebuilding it.
+Read-only inventory for task 260903-1142-001. Trace a specialist reaching done/blocked through
+`agent-wait.sh`, event persistence/delivery, lead wakeup, metadata updates, and Herdr tab cleanup.
+Explain why completed tabs remain open and identify the safest enforcement point plus exact-tab
+close primitive. Required ordering: capture/persist terminal result first; preserve a recoverable
+report/event; close only the tab id and generation that settled; never close a newer replacement;
+cleanup failure must not erase completion and must be observable/retryable. Determine from existing
+resume semantics whether blocked tabs should auto-close or only done tabs. Do not edit, delete, close
+tabs, or inspect projects/. Return <=15 lines naming exact files/functions, patch, tests, and any
+unresolved decision.
 
 ## Done means
 
-The commands that must pass, by name. If a suite can skip (missing service or env), say that a skip
-counts as unverified, not green.
+Inventory names executable tests for ordering, generation safety, idempotence, and cleanup failure.
 
 ## Decisions still open
 
-Anything the implementer must NOT decide alone. If this section is non-empty, the task is not ready
-to hand to a cheaper tier — resolve it first or mark the card `needs-decision`.
+Whether blocked tabs are terminal enough to auto-close; inventory resolves this from resume semantics.
 
 ## Rounds
 
