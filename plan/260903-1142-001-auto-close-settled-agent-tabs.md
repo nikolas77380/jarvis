@@ -1,10 +1,10 @@
 # 260903-1142-001 — auto-close-settled-agent-tabs
 
-**Status:** open · **Owner:** deputy · **Blocks:** — · **Depends on:** —
+**Status:** needs-decision · **Owner:** user · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** dispatch deputy with the read-only lifecycle inventory under ## Brief — deputy
+**Next:** user confirms whether acknowledgement of the durable done event gates automatic tab close
 
 <!--
 HOW TO USE THIS FILE
@@ -73,7 +73,18 @@ Inventory names executable tests for ordering, generation safety, idempotence, a
 
 ## Decisions still open
 
-Whether blocked tabs are terminal enough to auto-close; inventory resolves this from resume semantics.
+Whether acknowledgement of the durable done event gates close. Recommended: yes. Only `done`
+auto-closes; `blocked` stays open because existing resume and quota flows reuse it in place.
+
+## Inventory findings
+
+No cleanup is invoked after settle. `events-poll.sh` persists deduplicated done/blocked events and
+`inbox.sh` owns consumption/acknowledgement, while `agent-stop.sh` is the exact-tab close primitive.
+The safe implementation is a dedicated cleanup step after acknowledgement of an `agent-done`
+event. It must re-read metadata and verify the recorded generation/fingerprint before closing, so a
+newer replacement tab cannot be killed. Close failure leaves completion/event state intact and is
+observable and retryable. Tests cover persist-before-close ordering, generation safety,
+idempotence, and cleanup failure. Never auto-close `blocked`.
 
 ## Rounds
 

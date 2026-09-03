@@ -1,11 +1,10 @@
 # 260902-1411-001 — global-js-agent-roles
 
-**Status:** in-review · **Owner:** deputy · **Blocks:** — · **Depends on:** —
+**Status:** in-review · **Owner:** reviewer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #4 — https://github.com/nikolas77380/jarvis/pull/4
-**Next:** get `APPROVE` on PR #4 (logic-tier review of RULES.md/orchestrator.md routing changes plus
-the five role files), then merge to `main`.
+**Next:** dispatch reviewer round 1 of 2 on PR #4 tip 5a71d25, limited to the eight Owns files
 
 ## Goal
 

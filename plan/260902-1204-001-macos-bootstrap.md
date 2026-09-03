@@ -4,11 +4,7 @@
 **Validation:** strict
 **Engine:** claude
 PR: #3
-**Next:** hand PR #3 back to the engineer for the round-1 fix delta with
-`scripts/agent-review.sh 260902-1204-001 shell-engineer --brief-file plan/260902-1204-001-macos-bootstrap.md --engine claude`,
-briefing it on findings 1-3 under `## Review round 1` (findings 4-6 are its call, each either fixed
-or declined on the card with a reason). Round 1 of 2 is spent: the next reviewer dispatch is the
-LAST one, reviews only `c29e209..<fix tip>`, and re-runs every check in full.
+**Next:** hand PR #3 back to shell-engineer for the two targeted round-2 findings, then verify only those hunks without a third full review
 
 ## What and why
 
@@ -171,3 +167,12 @@ test on an unexpected `brew`/`curl`). Idempotence is asserted rather than claime
 any `brew`/`curl` invocation; case 7 runs twice and counts the profile line). Homebrew is printed
 and never executed, with case 3 asserting no symlink and no `.zprofile`. The `pwd -P` fixture
 comment and the `docs/herdr-runtime.md` rationale for the resolution loop both earn their place.
+
+## Review round 2
+
+**Verdict:** REQUEST_CHANGES. The reviewer reran 21/21 suites plus plan/owns checks and shellcheck.
+The round ceiling is spent. Two targeted fixes remain: pin `ZDOTDIR` inside `run_bootstrap` and
+`run_bootstrap_pty`, preserving the per-invocation override used by case 13; and reword the
+`docs/herdr-runtime.md` symlink-cycle sentence to match measured behavior. These are confined to the
+test helper and one documentation sentence. After the fix, verify only those two hunks and their
+focused cases; do not run a third full review.
