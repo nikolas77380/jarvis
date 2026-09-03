@@ -3,9 +3,9 @@
 **Status:** in-review · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
-PR: none yet
-**Next:** dispatch reviewer (logic tier — touches runtime metadata and the event schema) against this
-branch; round 1 of 2.
+PR: #6
+**Next:** dispatch reviewer (logic tier — touches runtime metadata and the event schema) against
+PR #6; round 1 of 2.
 
 ## Inventory findings (2026-09-03)
 
