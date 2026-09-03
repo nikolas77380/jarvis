@@ -23,6 +23,7 @@ scripts/agent-wait.sh <task-id> [--timeout <ms>]
 scripts/agent-peek.sh <task-id> [lines]
 scripts/agent-send.sh <task-id> <message>
 scripts/agent-stop.sh <task-id>
+scripts/agent-cleanup.sh <event-id>
 scripts/agent-attach.sh <task-id>
 scripts/session-start.sh
 ```
@@ -81,6 +82,21 @@ generation history. Calling `jarvis` attaches to that binding instead of creatin
   restores the old binding and closes the new tab.
 - Stop closes only the exact tab recorded for the task and marks that binding stopped. Endpoint
   identity remains in metadata for audit; the command never removes the worktree or branch.
+- Settled tabs are closed automatically, never on detection or event emission alone. `events-poll.sh`
+  resolves and freezes the producing execution's identity — agent name, tab, session, generation —
+  into an `agent-done` event's `identity` field at the moment it observes the `done` transition, from
+  that task's `.meta` as it read then. `agent-cleanup.sh <event-id>` is the only path that acts on it,
+  and its only trigger is that the event is already acknowledged (`inbox.sh acknowledge`) — cleanup
+  refuses on an unacknowledged event, on any type other than `agent-done`, and permanently on
+  `blocked` (a live, resumable state that switch/review/quota-resume reuse in place, never
+  terminal). Before closing, it re-reads the task's current metadata under the task's state lock and
+  requires agent name, tab, session, and generation to still equal the event's frozen identity; any
+  mismatch — a newer spawn, switch, review handoff, or relaunch — is a safe no-op that leaves the
+  replacement tab untouched. It shares `close_recorded_tab()` (`herdr-runtime-lib.sh`) with
+  `agent-stop.sh`, so a settled task ends in the identical terminal `stopped=1` state either way. A
+  close failure leaves the acknowledgement and metadata exactly as they were, exits non-zero, and is
+  safe to retry by re-running the same command. Both the identity match and the already-stopped case
+  are idempotent no-ops, so re-running cleanup on an event already acted on is harmless.
 - Session start prints active card/runtime reconciliation without mutating Herdr.
 - Context-size and spend scripts remain diagnostic. Context size never forces handoff or `/clear`.
 

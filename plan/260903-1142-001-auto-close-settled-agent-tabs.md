@@ -1,10 +1,70 @@
 # 260903-1142-001 — auto-close-settled-agent-tabs
 
-**Status:** open · **Owner:** deputy · **Blocks:** — · **Depends on:** —
+**Status:** in-review · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: none yet
-**Next:** dispatch deputy with the read-only lifecycle inventory under ## Brief — deputy
+**Next:** dispatch reviewer (logic tier — touches runtime metadata and the event schema) against this
+branch; round 1 of 2.
+
+## Inventory findings (2026-09-03)
+
+1. **Detection**: `scripts/agent-wait.sh` loops on `herdr agent wait` + `agent_status()`
+   (`scripts/herdr-runtime-lib.sh:262-266`), mapping to `working|idle|done|blocked|unknown`.
+   Quota-limited "blocked" is transient and auto-relaunches via `agent-switch.sh --relaunch`.
+2. **Persistence/notification**: `scripts/events-poll.sh` diffs `fleet-snapshot.sh --json` and calls
+   `event_emit()` (`scripts/harness-event-lib.sh:11-25`), appending idempotent (hash-deduped) records
+   to `$HARNESS_STATE/events.jsonl`. `scripts/inbox.sh list/drain/acknowledge` is how the lead
+   consumes/acks; unread = events.jsonl minus event-acks.jsonl.
+3. **Metadata**: task `.meta` (`tab`, `session`, `generation`, `stopped`) updated by
+   `agent-spawn.sh`, `agent-switch.sh` (generation bump, `atomic_meta_write`), `agent-review.sh`
+   (handoff bump), `agent-stop.sh` (`stopped=1`). `events-poll.sh` only writes `fleet-previous.json`,
+   never task meta.
+4. **Close primitive**: `scripts/agent-stop.sh` — `herdr --session <session> tab close <TAB>` then
+   `stopped=1`. Needs `tab` + `session` from `.meta`. Generation-safety is NOT built into
+   `agent-stop.sh`; the safe pattern lives in `agent-switch.sh:51` (verify `FINGERPRINT` unchanged
+   before closing the old tab).
+5. **Why tabs stay open**: cleanup is simply never invoked on settle. `events-poll.sh` emits
+   `agent-done`/`agent-blocked` events but nothing consumes them to call `agent-stop.sh`. No code
+   gate on "report consumed" exists today.
+6. **blocked vs done**: only `done` is safe to auto-close. `blocked` is a live, resumable state reused
+   in place by `agent-switch.sh`/`agent-review.sh`/`quota-resume-poll.sh`; closing it would destroy
+   state a resume flow expects to reuse.
+
+**Proposed enforcement point**: new step after `inbox.sh acknowledge` (or a dedicated
+`agent-cleanup.sh` triggered by the lead only on `agent-done` events), reading `tab`/`generation`/
+`fingerprint` from meta and calling the `agent-stop.sh` close path guarded by the
+`agent-switch.sh:51` fingerprint check. Never inside `events-poll.sh` (no meta lock held there, runs
+unattended).
+
+**Tests needed**: (a) ordering — event persisted+acked before close attempted; (b) generation-safety —
+close after a switch/review handoff targets only the old tab, never the new one; (c) idempotence —
+double-close/double-ack is a no-op; (d) cleanup-failure observability — failed close leaves
+meta/event intact, logs, and is retryable (mirror `agent-stop.sh`'s `die` on close failure without
+losing the ack).
+
+**Resolved (2026-09-03, user confirmed)**: persist done event -> acknowledge -> generation-guarded
+close exact tab. Only `done` auto-closes; `blocked` stays open because resume and quota flows reuse
+it in place.
+
+## Implementation (2026-09-03)
+
+`events-poll.sh` now resolves and freezes the producing execution's identity (agent name, tab,
+session, generation) from the task's `.meta` into the `agent-done` event's new `identity` field at
+the moment it observes the `done` transition (`harness-event-lib.sh`'s `event_emit` grows an
+optional 5th `identity` JSON arg, default `{}`, so every other event type and the existing
+`inbox.sh emit` CLI are unaffected). `scripts/agent-cleanup.sh <event-id>` is the only path that
+acts on it: it requires the event to already be acknowledged and to be type `agent-done`, then
+re-reads the task's current metadata under its state lock and closes only if agent name, tab,
+session, and generation still match the frozen identity — any mismatch (a newer spawn, switch,
+review handoff, or relaunch) is a safe no-op. Closing itself is `close_recorded_tab()`, extracted
+from `agent-stop.sh` into `herdr-runtime-lib.sh` so both end in the identical `stopped=1` terminal
+state; a close failure `die`s before mutating meta, so the acknowledgement and metadata stay intact
+and the same command is safe to retry. Tests: `tests/agent-cleanup.test.sh` (ordering, ack-gating,
+exact-target close, close-failure-then-retry, idempotent double-cleanup, generation-mismatch no-op,
+blocked-never-closes) plus the full existing suite and `tests/herdr-runtime.test.sh`'s
+`agent-stop.sh` coverage, unchanged behaviourally by the refactor. Documented in
+`docs/herdr-runtime.md`, `docs/inbox-and-decisions.md`, and `agents/orchestrator.md`.
 
 <!--
 HOW TO USE THIS FILE
@@ -67,13 +127,21 @@ resume semantics whether blocked tabs should auto-close or only done tabs. Do no
 tabs, or inspect projects/. Return <=15 lines naming exact files/functions, patch, tests, and any
 unresolved decision.
 
+## Owns
+
+scripts/agent-cleanup.sh, scripts/harness-event-lib.sh, scripts/events-poll.sh, scripts/agent-stop.sh,
+scripts/herdr-runtime-lib.sh, tests/agent-cleanup.test.sh, docs/herdr-runtime.md,
+docs/inbox-and-decisions.md
+
 ## Done means
 
 Inventory names executable tests for ordering, generation safety, idempotence, and cleanup failure.
+Implementation: `agent-cleanup.sh` exists, is the only settled-tab close path, is covered by
+`tests/agent-cleanup.test.sh`, and the full shell suite plus shellcheck/plan-check/owns-check pass.
 
 ## Decisions still open
 
-Whether blocked tabs are terminal enough to auto-close; inventory resolves this from resume semantics.
+None. Resolved 2026-09-03: only `done` auto-closes (see "Resolved" above); `blocked` never does.
 
 ## Rounds
 

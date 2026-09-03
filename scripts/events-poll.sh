@@ -26,7 +26,24 @@ printf '%s' "$CURRENT" | jq -c '.tasks[]' | while IFS= read -r TASK_JSON; do
   OLD_CLEAN=$(printf '%s' "$PREVIOUS" | jq -r --arg task "$TASK" '.tasks[]? | select(.task==$task) | .cleanSlate.state' | head -1)
   if [ "$RUNTIME" != "$OLD_RUNTIME" ]; then
     case "$RUNTIME" in
-      done) event_emit "$TASK" agent-done "$RUNTIME-$HEAD" 'Agent completed' >/dev/null ;;
+      done)
+        # A done event is the trigger for agent-cleanup.sh's tab close, so it must carry the exact
+        # identity (agent name, tab, session, generation) that produced it — resolved here, while
+        # the meta file still describes this generation, not re-derived at close time.
+        DONE_IDENTITY='{}'
+        DONE_META="$HARNESS_STATE/$TASK.meta"
+        if [ -f "$DONE_META" ] && [ ! -L "$DONE_META" ] && [ "$(meta_get "$DONE_META" schema)" = harness-herdr-task.v1 ]; then
+          DONE_GENERATION=$(meta_get "$DONE_META" generation); DONE_GENERATION=${DONE_GENERATION:-1}
+          DONE_IDENTITY=$(jq -nc \
+            --arg agentName "$(meta_get "$DONE_META" agent_name)" \
+            --arg tab "$(meta_get "$DONE_META" tab)" \
+            --arg session "$(meta_get "$DONE_META" session)" \
+            --arg generation "$DONE_GENERATION" \
+            --arg head "$HEAD" \
+            '{agentName:$agentName,tab:$tab,session:$session,generation:($generation|tonumber),head:$head}')
+        fi
+        event_emit "$TASK" agent-done "$RUNTIME-$HEAD" 'Agent completed' "$DONE_IDENTITY" >/dev/null
+        ;;
       blocked) event_emit "$TASK" agent-blocked "$RUNTIME-$HEAD" 'Agent is blocked' >/dev/null ;;
       missing) [ -z "$OLD_RUNTIME" ] || event_emit "$TASK" agent-missing "$RUNTIME-$HEAD" 'Recorded Herdr agent is missing' >/dev/null ;;
       archived) event_emit "$TASK" task-archived "$RUNTIME-$HEAD" 'Task worktree was archived' >/dev/null ;;
