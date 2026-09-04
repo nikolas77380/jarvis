@@ -4,9 +4,56 @@
 **Validation:** strict
 **Engine:** claude
 PR: #6
-**Next:** dispatch reviewer (logic tier) against PR #6 at the fix-round tip for round 2 of 2 — read
-only the delta since `96b3054` plus the "## Review round 1" findings below; the full suite still
-runs in full.
+**Next:** dispatch reviewer (logic tier) against PR #6 at `5c40782` for round 2 of 2 — read only the
+delta since `96b3054` plus the "## Review round 1" and "## Pre-round-2 addendum" findings below; the
+full suite still runs in full.
+
+## Pre-round-2 addendum (2026-09-04)
+
+Before dispatching round 2, the lead flagged a live observation: `herdr agent list` showed only
+`jarvis` while several specialist tasks' `.meta` still claimed an active, unacknowledged tab.
+Diagnosed and reproduced directly against the running Herdr session (read-only probes: `agent get`,
+`tab list`, `workspace list`, plus one `tab close` against an id already absent from `tab list`, which
+cannot affect a live tab):
+
+- `.harness-state/260902-1204-001.meta` and `.harness-state/260902-1545-001.meta` (both cards already
+  `Status: done`, PRs merged) still recorded `stopped=0` with tab ids (`w2:t62`, `w2:t59`) that no
+  longer appear anywhere in `herdr tab list` — workspace `w2` has exactly 3 live tabs total (jarvis,
+  this task, and one untracked default tab), not the 5+ the recorded `.meta` files imply.
+- `herdr agent get <name>` and `herdr agent read <tab>` both return `agent_not_found` for these —
+  consistent with the tab having been closed, not merely gone idle or dropped from a filtered view.
+- Nothing in this repo closed them: none of `agent-stop.sh`/`agent-switch.sh`/`agent-review.sh`/
+  `agent-cleanup.sh` ran against these tasks after their last recorded `handed_off_at` (no
+  `stopped_at`, no new `switched_at`/tab bump past what's on disk), and `agent-cleanup.sh` is never
+  invoked unattended (see main finding above).
+
+**Boundary — external to this repo:** a Herdr tab can be closed through channels this repo has no
+visibility into (a human closing it directly in the terminal, the terminal app or Herdr server
+restarting, the machine sleeping) and nothing here is notified when that happens. There is no event,
+hook, or poll target in Herdr's socket API this repo subscribes to for "tab closed externally" — the
+only way to discover it is to try to act on the tab and observe the failure. That discovery gap is not
+fixable from this repo; it is a property of how Herdr's live pane state relates to this harness's
+durable `.meta` records.
+
+**What was fixable, and fixed:** `close_recorded_tab()` treated *any* non-zero `herdr tab close` exit
+as a permanent, retryable-but-never-succeeding failure — including the one case that can never
+succeed on retry: Herdr reporting `tab_not_found` because the tab is already gone. That's exactly why
+these tasks' `.meta` stayed `stopped=0` forever with no path to reconciliation. `close_recorded_tab`
+now inspects the error code: `tab_not_found` reconciles straight to the same `stopped=1` terminal
+state a real close reaches (this is provably safe — the terminal result was already captured and
+persisted as an event before any close is attempted, per the ordering this task already enforces); any
+other close failure still `die`s exactly as before, unchanged. Fixed in `5c40782`. New coverage:
+`tests/agent-cleanup.test.sh` scenario 5 (tab-already-gone reconciles; a genuine non-`tab_not_found`
+failure still dies and stays retryable). Full suite: all tests pass. `shellcheck -S warning` on the
+touched files, `plan-check.sh`, and `owns-check.sh` all clean.
+
+**Not done, and out of scope here:** nothing reconciles a *stale* `.meta` proactively — a done task
+whose tab was closed externally stays `stopped=0` until something next tries to close it (e.g. a
+future `agent-cleanup.sh`/`agent-stop.sh` call, or `task-teardown.sh`'s stopped-before-teardown check).
+Building an active reconciliation sweep (e.g. a `fleet-snapshot`/`agent-list` pass that detects
+`agent_not_found` and marks stale tasks stopped on sight) is a reasonable follow-up but is new scope
+beyond this task's `Owns:` and brief — flagging for the lead to decide as a separate task rather than
+folding it in here.
 
 ## Inventory findings (2026-09-03)
 
