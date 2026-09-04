@@ -26,7 +26,32 @@ printf '%s' "$CURRENT" | jq -c '.tasks[]' | while IFS= read -r TASK_JSON; do
   OLD_CLEAN=$(printf '%s' "$PREVIOUS" | jq -r --arg task "$TASK" '.tasks[]? | select(.task==$task) | .cleanSlate.state' | head -1)
   if [ "$RUNTIME" != "$OLD_RUNTIME" ]; then
     case "$RUNTIME" in
-      done) event_emit "$TASK" agent-done "$RUNTIME-$HEAD" 'Agent completed' >/dev/null ;;
+      done)
+        # A done event is the trigger for agent-cleanup.sh's tab close, so it must carry the exact
+        # identity (agent name, tab, session, generation) that produced it. Resolved here from an
+        # unlocked read of that task's .meta -- a concurrent handoff rewriting it mid-read could
+        # yield a chimeric identity, but agent-cleanup.sh's own re-read-under-lock-and-match at
+        # close time fails safe on any such mismatch, so this can never close the wrong tab.
+        DONE_IDENTITY='{}'
+        DONE_GENERATION=''
+        DONE_META="$HARNESS_STATE/$TASK.meta"
+        if [ -f "$DONE_META" ] && [ ! -L "$DONE_META" ] && [ "$(meta_get "$DONE_META" schema)" = harness-herdr-task.v1 ]; then
+          DONE_GENERATION=$(meta_get "$DONE_META" generation); DONE_GENERATION=${DONE_GENERATION:-1}
+          DONE_IDENTITY=$(jq -nc \
+            --arg agentName "$(meta_get "$DONE_META" agent_name)" \
+            --arg tab "$(meta_get "$DONE_META" tab)" \
+            --arg session "$(meta_get "$DONE_META" session)" \
+            --arg generation "$DONE_GENERATION" \
+            --arg head "$HEAD" \
+            '{agentName:$agentName,tab:$tab,session:$session,generation:($generation|tonumber),head:$head}')
+        fi
+        # Keyed by generation, not just runtime+head: a reviewer generation that commits nothing
+        # settles at the same HEAD as the engineer generation before it, and without the generation
+        # in the dedup key their done events would collide -- silently dropping the reviewer's event
+        # and leaving the tab it settles in permanently ineligible for cleanup.
+        DONE_KEY="$RUNTIME-$HEAD"; [ -z "$DONE_GENERATION" ] || DONE_KEY="$DONE_KEY-g$DONE_GENERATION"
+        event_emit "$TASK" agent-done "$DONE_KEY" 'Agent completed' "$DONE_IDENTITY" >/dev/null
+        ;;
       blocked) event_emit "$TASK" agent-blocked "$RUNTIME-$HEAD" 'Agent is blocked' >/dev/null ;;
       missing) [ -z "$OLD_RUNTIME" ] || event_emit "$TASK" agent-missing "$RUNTIME-$HEAD" 'Recorded Herdr agent is missing' >/dev/null ;;
       archived) event_emit "$TASK" task-archived "$RUNTIME-$HEAD" 'Task worktree was archived' >/dev/null ;;

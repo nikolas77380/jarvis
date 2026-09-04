@@ -1,10 +1,10 @@
 # 260902-1545-001 — capability-aware-design-qa
 
-**Status:** open · **Owner:** deputy · **Blocks:** — · **Depends on:** —
+**Status:** done · **Owner:** lead · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
-PR: none yet
-**Next:** dispatch deputy with the inventory brief under ## Brief — deputy
+PR: #5
+**Next:** none — PR #5 merged as b7f3706
 
 <!--
 HOW TO USE THIS FILE
@@ -70,10 +70,131 @@ Inventory names exact implementation files, reusable primitives, and executable 
 
 ## Decisions still open
 
-None for inventory. The invariant and degraded-result semantics are decided above.
+None. A child must inherit the same authorized MCP identity/configuration available to its
+orchestrator. No multi-profile broker is required. Capabilities are declared in role frontmatter; a
+live probe verifies inheritance before the substantive brief; failure is fail-closed and never
+causes the lead to proxy specialist evidence.
+
+## Inventory checkpoint
+
+No preflight exists. `scripts/agent-spawn.sh` and `scripts/agent-review.sh` launch without MCP/auth
+checks; `agents/design-qa.md` only asks the agent to report BLOCKED. Enforcement belongs in those
+scripts plus role/orchestrator rules. Before implementation, identify the existing primitive that
+can prove a target session's live capability before its substantive brief is delivered, and how the
+runtime selects a different authenticated session/profile after failure.
+
+The follow-up found that no live-auth probe or credential-profile selection exists. `engine_start`
+only observes coarse terminal state and `engine_prompt` immediately sends the substantive brief.
+Authentication failure appears only inside the child conversation. Existing primitives can support
+a deterministic probe prompt and parsed success/failure marker before releasing the real brief.
+However, `agent-switch.sh` selects only Claude versus Codex; it cannot select a different credential
+identity. Automatic recovery to an authenticated agent therefore requires a new profile broker with
+credential enumeration and launch-time profile selection.
+
+## User clarification
+
+The orchestrator already had authorized Figma access. The intended contract is therefore shared
+authorization inheritance, not multiple credential profiles. Diagnose why a Herdr child sees an
+unauthenticated MCP server despite the parent having working access, repair that boundary, and keep
+a live preflight as a regression guard. Never print or relay credential values through lead context.
+
+## Root cause
+
+Claude children inherit the real HOME and keychain, but MCP consent is project-scoped by absolute
+cwd in `~/.claude.json`. `scripts/agent-engine-lib.sh` creates trust state for the new worktree path
+but does not inherit `mcpServers` or `enabledMcpjsonServers` from the parent project entry. Thus the
+same authorized identity appears unauthenticated inside a fresh worktree.
+
+## Implementation brief — shell-engineer
+
+Implement task 260902-1545-001 in the existing task worktree. In
+`scripts/agent-engine-lib.sh`, extend the Claude worktree initialization boundary so a newly created
+worktree inherits the parent project's project-scoped MCP configuration/consent keys
+`mcpServers` and `enabledMcpjsonServers` before any substantive brief is delivered. Copy locally
+between JSON project entries without printing, logging, serializing into reports, or exposing any
+credential/token values. Preserve unrelated child and parent configuration. Add a deterministic live
+capability preflight before the substantive prompt for roles declaring required capabilities; the
+role declaration must be frontmatter, not a hard-coded design-qa map. Probe failure must stop the run
+fail-closed and must not deliver the substantive brief. Add the general lead invariant to
+`RULES.md` and `agents/orchestrator.md`: the lead never fetches or absorbs external-source evidence
+on behalf of a specialist. Update `agents/design-qa.md` so prefetched evidence without live required
+capability cannot yield APPROVE/MATCH. Add regression tests covering MCP key inheritance without
+printing values, preservation of unrelated config, preflight ordering, fail-closed behavior, and
+the anti-proxy rule. Do not touch `projects/` or files owned by active tasks 260902-1204-001 and
+260902-1411-001. Run the relevant shell test suite, lint/static checks, and plan checks. Commit,
+push, open a PR, write `reports/260902-1545-001-shell-engineer.md`, and return at most 15 lines.
 
 ## Rounds
 
 Append a `## Review round N` section per round: verdict, what was found, what was fixed, and anything
 deliberately left alone with the reason. `scripts/review-rounds.sh` compares these headings against
 what actually ran in the transcripts, and the ceiling is two.
+
+## Engineer checkpoint
+
+PR #5 at `4cd51b4`. The implementation inherits Claude project-scoped MCP consent into task
+worktrees, declares required capabilities in role frontmatter, gates substantive prompts on live
+preflight, fails closed, and records the anti-proxy invariant. Engineer reports 25 existing plus 5
+new tests green, with `plan-check.sh` and `owns-check.sh` clean. Full report:
+`reports/260902-1545-001-shell-engineer.md`. Reviewer must treat the diff as evidence.
+
+## Review round 1
+
+**Verdict:** NEEDS_CHANGES (reviewer response interrupted by host sleep after producing the finding).
+
+The reviewer reran the full shell suite successfully and confirmed `plan-check.sh` and
+`owns-check.sh` pass. A direct capability-parser reproduction returned capabilities containing
+`figma`, but failed because another output line followed the deterministic marker. The parser must
+recognize exactly one well-formed marker independent of harmless surrounding agent output, while
+still rejecting missing, malformed, duplicate, or contradictory markers. Add a regression test for
+trailing output. Fix round scope is this parser delta and its tests only; all other PR hunks remain
+outside the reading scope for round 2.
+
+**Fix:** `9c72c33` recognizes exactly one well-formed PASS marker anywhere in probe output and
+rejects missing, malformed, duplicate, FAIL, or contradictory markers. Only
+`scripts/agent-engine-lib.sh` and `tests/capability-preflight.test.sh` changed. Engineer reran the
+full 24-file shell suite, plan/ownership checks, and shellcheck successfully. Report-only tip is
+`b0ab6ed`; reports remain outside review scope.
+
+## Review round 2
+
+**Verdict:** REQUEST_CHANGES. Full suite 24/24, shellcheck, plan-check, and owns-check passed, but the
+reviewer reproduced two defects through the real functions:
+
+1. The terminal snapshot echoes the delivered preflight prompt, which itself contains literal PASS
+   and FAIL marker lines. The parser counts those along with the agent reply, so an authenticated
+   PASS becomes `pass_count=2`, `fail_count=1` and every capability-gated role is rejected.
+2. A bare `CAPABILITY_PREFLIGHT_RESULT FAIL` is not counted because the matcher requires a trailing
+   space; combined with PASS it can be accepted, violating fail-closed contradictory-marker rules.
+
+The two-round full-review ceiling is reached. The next run may edit only the preflight
+prompt/reply-boundary parser and its focused regression tests. Verification must exercise the real
+prompt echo plus reply path and bare FAIL; it is targeted hunk verification, not a third full review.
+Reviewer report exists uncommitted in the task worktree at
+`reports/260902-1545-001-shell-reviewer.md`.
+
+**Targeted fix:** `bb05695` changes verdict parsing to use the last well-formed marker in the echoed
+snapshot, so prompt examples precede and cannot override the agent's answer. Bare FAIL is recognized.
+Focused tests construct snapshots from the real prompt plus appended PASS/FAIL replies. Engineer
+reports 24/24 shell test files, shellcheck, plan-check, and owns-check green. The reviewer report was
+committed with the fix. The only remaining work permitted by the round ceiling is independent
+verification of this parser hunk and the two exact reproductions; no full PR reread.
+
+## Targeted verification brief — deputy
+
+Read only the code delta affecting `capability_preflight_verdict` and its focused tests at PR #5 tip
+`bb05695`. Do not reread or review the full PR; the two-round ceiling is reached. Independently run
+the real-function reproductions for: (1) the actual `capability_preflight_prompt` echoed before an
+appended authenticated PASS reply must PASS, and before an appended FAIL reply must FAIL; (2) bare
+FAIL alone and PASS followed by bare FAIL must FAIL. Confirm malformed markers remain rejected and
+that last-marker semantics cannot let prompt examples decide the verdict. Run the focused test file
+and shellcheck for the changed parser/test files. Read-only: make no edits. Return at most 15 lines
+with `TARGETED_VERIFY: PASS|FAIL`, commands and results, and any exact failing case.
+
+## Targeted verification result
+
+`TARGETED_VERIFY: PASS` at PR #5 tip `bb05695`. The deputy independently reproduced: real prompt
+echo plus PASS returns PASS; real prompt echo plus FAIL returns FAIL; bare FAIL returns FAIL; PASS
+followed by bare FAIL returns FAIL; malformed PASS is rejected. The focused capability-preflight
+test exits zero and shellcheck is clean. No further review rounds are permitted or required. PR #5
+is ready for the user's merge decision.

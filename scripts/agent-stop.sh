@@ -12,13 +12,5 @@ state_lock_acquire "$ID"
 require_tools
 META=$(require_meta "$ID")
 [ "$(meta_get "$META" stopped)" != 1 ] || { echo "already stopped: $ID"; exit 0; }
-TAB=$(meta_get "$META" tab)
-[ -n "$TAB" ] || die "metadata has no Herdr tab for $ID"
-herdr --session "$(meta_get "$META" session)" tab close "$TAB" >/dev/null \
-  || die "could not close Herdr tab $TAB; metadata left active"
-TMP=$(mktemp "$HARNESS_STATE/.stop-meta.XXXXXX")
-sed 's/^stopped=.*/stopped=1/' "$META" > "$TMP"
-printf 'stopped_at=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$TMP"
-chmod 600 "$TMP"
-mv "$TMP" "$META"
+close_recorded_tab "$ID" "$META"
 printf 'stopped: %s · worktree preserved: %s\n' "$ID" "$(meta_get "$META" worktree)"

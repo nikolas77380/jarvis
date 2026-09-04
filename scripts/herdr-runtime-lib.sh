@@ -259,6 +259,25 @@ atomic_meta_write() {
   mv "$tmp" "$destination"
 }
 
+# Close the exact Herdr tab recorded in a task's metadata and mark it stopped. Caller must already
+# hold the task's state lock and have validated `meta` via require_meta. Shared by agent-stop.sh
+# (manual stop) and agent-cleanup.sh (settled-tab auto-close) so both leave the task in the identical
+# terminal meta state; dies leaving `meta` untouched on close failure, so the caller's own state
+# (e.g. an acknowledged event) survives for a retry.
+close_recorded_tab() {
+  local id=$1 meta=$2 session tab tmp
+  session=$(meta_get "$meta" session)
+  tab=$(meta_get "$meta" tab)
+  [ -n "$tab" ] || die "metadata has no Herdr tab for $id"
+  herdr --session "$session" tab close "$tab" >/dev/null \
+    || die "could not close Herdr tab $tab; metadata left active"
+  tmp=$(mktemp "$HARNESS_STATE/.stop-meta.XXXXXX")
+  sed 's/^stopped=.*/stopped=1/' "$meta" > "$tmp"
+  printf 'stopped_at=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$tmp"
+  chmod 600 "$tmp"
+  mv "$tmp" "$meta"
+}
+
 agent_status() {
   local name=$1 session=${2:-$HARNESS_HERDR_SESSION} out status
   out=$(herdr --session "$session" agent get "$name" 2>/dev/null) || { printf 'unknown'; return; }
