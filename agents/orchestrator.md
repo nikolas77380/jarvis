@@ -96,13 +96,18 @@ never apologize.
   Read progress with `scripts/agent-state.sh` and `scripts/agent-peek.sh`; follow up with
   `scripts/agent-send.sh`; use `scripts/agent-stop.sh` only when the exact recorded task tab should
   end. Begin a resumed lead session with `scripts/session-start.sh`.
-- **Once you have acted on a settled `agent-done` event, close its tab with `agent-cleanup.sh`
-  rather than leaving it or reaching for `agent-stop.sh`.** After `inbox.sh acknowledge <event-id>`,
-  run `scripts/agent-cleanup.sh <event-id>` — it is the only auto-close path, it refuses on anything
-  not yet acknowledged and on any type other than `agent-done` (a `blocked` tab stays open; resume
-  and quota flows reuse it in place), and it re-verifies the task's current tab/generation before
-  closing so a later switch or review handoff is never touched. A close failure is retryable; just
-  run the same command again. Full contract: "Behaviour" in `docs/herdr-runtime.md`.
+- **`agent-cleanup.sh` closes a task's tab only for a generation you have decided will NOT be handed
+  to another agent — never as a reflex right after every acknowledged `agent-done`.** It marks the
+  task `stopped=1`, and `agent-review.sh`/`agent-switch.sh` both refuse outright on a stopped task
+  ("use a relaunch flow") — they already close the outgoing tab themselves as the last step of their
+  own handoff, so an engineer's `done` that is about to go to a reviewer, or a reviewer's `done` that
+  is about to go back for a fix round, must be acknowledged and read, never cleaned up. Only once a
+  task's current generation is genuinely finished (no further agent will pick it up), run
+  `scripts/agent-cleanup.sh <event-id>` after `inbox.sh acknowledge <event-id>` — it refuses on
+  anything not yet acknowledged and on any type other than `agent-done` (a `blocked` tab stays open;
+  resume and quota flows reuse it in place), and it re-verifies the task's current tab/generation
+  before closing so a later switch or review handoff is never touched. A close failure is retryable;
+  just run the same command again. Full contract: "Behaviour" in `docs/herdr-runtime.md`.
 - **Wake yourself up when the specialist finishes — do not wait for the user to ask.** You are a
   turn-based session: a specialist reporting back in its own Herdr tab is invisible to you until
   something gives you a new turn. Immediately after every `agent-spawn.sh` / `agent-switch.sh`, run

@@ -82,21 +82,31 @@ generation history. Calling `jarvis` attaches to that binding instead of creatin
   restores the old binding and closes the new tab.
 - Stop closes only the exact tab recorded for the task and marks that binding stopped. Endpoint
   identity remains in metadata for audit; the command never removes the worktree or branch.
-- Settled tabs are closed automatically, never on detection or event emission alone. `events-poll.sh`
-  resolves and freezes the producing execution's identity — agent name, tab, session, generation —
-  into an `agent-done` event's `identity` field at the moment it observes the `done` transition, from
-  that task's `.meta` as it read then. `agent-cleanup.sh <event-id>` is the only path that acts on it,
-  and its only trigger is that the event is already acknowledged (`inbox.sh acknowledge`) — cleanup
-  refuses on an unacknowledged event, on any type other than `agent-done`, and permanently on
-  `blocked` (a live, resumable state that switch/review/quota-resume reuse in place, never
-  terminal). Before closing, it re-reads the task's current metadata under the task's state lock and
-  requires agent name, tab, session, and generation to still equal the event's frozen identity; any
-  mismatch — a newer spawn, switch, review handoff, or relaunch — is a safe no-op that leaves the
-  replacement tab untouched. It shares `close_recorded_tab()` (`herdr-runtime-lib.sh`) with
-  `agent-stop.sh`, so a settled task ends in the identical terminal `stopped=1` state either way. A
-  close failure leaves the acknowledgement and metadata exactly as they were, exits non-zero, and is
-  safe to retry by re-running the same command. Both the identity match and the already-stopped case
-  are idempotent no-ops, so re-running cleanup on an event already acted on is harmless.
+- A settled tab is closed only by a deliberate `agent-cleanup.sh <event-id>` call — never
+  automatically, and never on detection or event emission alone; nothing in the harness invokes it on
+  the lead's behalf. `events-poll.sh` resolves and freezes the producing execution's identity — agent
+  name, tab, session, generation — into an `agent-done` event's `identity` field at the moment it
+  observes the `done` transition, from an unlocked read of that task's `.meta` as it read then (a
+  concurrent handoff rewriting the meta mid-read could yield a chimeric identity, but the match check
+  below fails safe on any such mismatch). The event's dedup key includes that generation, so every
+  execution generation gets its own event even when HEAD is unchanged across generations — a reviewer
+  that commits nothing settles at the same HEAD as the engineer before it, and would otherwise
+  silently lose its event to the earlier one's. `agent-cleanup.sh <event-id>` is the only path that
+  acts on a frozen identity, and its only trigger is that the event is already acknowledged
+  (`inbox.sh acknowledge`) — cleanup refuses on an unacknowledged event, on any type other than
+  `agent-done`, and permanently on `blocked` (a live, resumable state that switch/review/quota-resume
+  reuse in place, never terminal). It marks the task `stopped=1`, and `agent-review.sh` /
+  `agent-switch.sh` both refuse a stopped task outright, so it must only be run for a generation that
+  will not be handed to another agent — both of those scripts already close the outgoing tab
+  themselves as the last step of their own handoff. Before closing, it re-reads the task's current
+  metadata under the task's state lock and requires agent name, tab, session, and generation to still
+  equal the event's frozen identity; any mismatch — a newer spawn, switch, review handoff, or
+  relaunch — is a safe no-op that leaves the replacement tab untouched. It shares
+  `close_recorded_tab()` (`herdr-runtime-lib.sh`) with `agent-stop.sh`, so a settled task ends in the
+  identical terminal `stopped=1` state either way. A close failure leaves the acknowledgement and
+  metadata exactly as they were, exits non-zero, and is safe to retry by re-running the same command.
+  Both the identity match and the already-stopped case are idempotent no-ops, so re-running cleanup on
+  an event already acted on is harmless.
 - Session start prints active card/runtime reconciliation without mutating Herdr.
 - Context-size and spend scripts remain diagnostic. Context size never forces handoff or `/clear`.
 

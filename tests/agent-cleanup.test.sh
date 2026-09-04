@@ -151,4 +151,51 @@ fi
 test "$(tab_close_count)" = "$BEFORE"
 grep -qx 'stopped=0' "$TMP/state/t3.meta"
 
+# --- scenario 4: two generations settling at an unchanged HEAD each get their own event ---------
+# Regression for the collapsed-dedup-key bug: a reviewer generation that commits nothing settles at
+# the same HEAD as the engineer generation before it, and the dedup key must still tell them apart.
+write_meta t4 agent_t4a tabX 1
+cat > "$TMP/snap-4a.json" <<'JSON'
+{"schema":"harness-fleet-snapshot.v1","tasks":[
+ {"task":"t4","runtime":{"observed":"working"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}}
+]}
+JSON
+FAKE_SNAPSHOT="$TMP/snap-4a.json" "$TMP/scripts/events-poll.sh" >/dev/null
+cat > "$TMP/snap-4b.json" <<'JSON'
+{"schema":"harness-fleet-snapshot.v1","tasks":[
+ {"task":"t4","runtime":{"observed":"done"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}}
+]}
+JSON
+FAKE_SNAPSHOT="$TMP/snap-4b.json" "$TMP/scripts/events-poll.sh" >/dev/null
+EVENT4A=$("$TMP/scripts/inbox.sh" list --json | jq -r '.[] | select(.task=="t4" and .type=="agent-done") | .id')
+"$TMP/scripts/inbox.sh" list --json | jq -e --arg id "$EVENT4A" \
+  '.[] | select(.id==$id) | .identity.tab=="tabX" and .identity.generation==1 and .identity.agentName=="agent_t4a"' >/dev/null
+
+# simulate a review handoff: generation bumps, new tab, HEAD unchanged (reviewer commits nothing)
+write_meta t4 agent_t4b tabY 2
+cat > "$TMP/snap-4c.json" <<'JSON'
+{"schema":"harness-fleet-snapshot.v1","tasks":[
+ {"task":"t4","runtime":{"observed":"working"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}}
+]}
+JSON
+FAKE_SNAPSHOT="$TMP/snap-4c.json" "$TMP/scripts/events-poll.sh" >/dev/null
+cat > "$TMP/snap-4d.json" <<'JSON'
+{"schema":"harness-fleet-snapshot.v1","tasks":[
+ {"task":"t4","runtime":{"observed":"done"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}}
+]}
+JSON
+FAKE_SNAPSHOT="$TMP/snap-4d.json" "$TMP/scripts/events-poll.sh" >/dev/null
+EVENT4B=$("$TMP/scripts/inbox.sh" list --json | jq -r '.[] | select(.task=="t4" and .type=="agent-done" and .id!="'"$EVENT4A"'") | .id')
+test -n "$EVENT4B"
+test "$EVENT4A" != "$EVENT4B"
+"$TMP/scripts/inbox.sh" list --json | jq -e --arg id "$EVENT4B" \
+  '.[] | select(.id==$id) | .identity.tab=="tabY" and .identity.generation==2 and .identity.agentName=="agent_t4b"' >/dev/null
+
+# generation 1's event is now stale (metadata moved on) and cannot close tabY; generation 2's can
+"$TMP/scripts/inbox.sh" acknowledge "$EVENT4A" >/dev/null
+"$TMP/scripts/agent-cleanup.sh" "$EVENT4A" | grep -q 'metadata moved past the settled generation'
+"$TMP/scripts/inbox.sh" acknowledge "$EVENT4B" >/dev/null
+"$TMP/scripts/agent-cleanup.sh" "$EVENT4B" | grep -q 'closed settled tab tabY'
+grep -qx 'stopped=1' "$TMP/state/t4.meta"
+
 echo 'agent cleanup tests: ok'
