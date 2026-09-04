@@ -71,8 +71,108 @@ claude_accept_startup_trust_dialog() {
   [ "$(agent_status "$name")" = idle ]
 }
 
+# Claude MCP consent (`mcpServers`, `enabledMcpjsonServers`) is recorded per project ENTRY in
+# ~/.claude.json, keyed by absolute cwd — so a freshly `git worktree add`-ed task worktree is a brand
+# new, unconsented entry even though it is a child of an already-authorized project the orchestrator
+# itself runs from. The child inherits the real HOME and keychain, so credentials themselves are
+# never the problem; only the project-scoped consent record is missing, which makes an authorized MCP
+# server (e.g. Figma) look unauthenticated inside the child. Copy just those two keys from the parent
+# project's entry into the child's, preserving every other key already recorded for either side, and
+# never printing a value: this function's only observable effect is the JSON file it writes.
+claude_inherit_mcp_config() {
+  local worktree=$1 project_root=${2:-} home config tmp
+  [ -n "$project_root" ] || return 0
+  home=$(real_user_home)
+  config="$home/.claude.json"
+  command -v jq >/dev/null 2>&1 || return 0
+  [ -f "$config" ] || return 0
+  tmp=$(mktemp "$config.XXXXXX") || return 0
+  if jq --arg parent "$project_root" --arg child "$worktree" '
+      (.projects[$parent].mcpServers // {}) as $servers
+      | (.projects[$parent].enabledMcpjsonServers // []) as $enabled
+      | .projects[$child] = ((.projects[$child] // {})
+          + {mcpServers: $servers, enabledMcpjsonServers: $enabled})
+    ' "$config" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+    chmod 600 "$tmp"
+    mv "$tmp" "$config"
+  else
+    rm -f "$tmp"
+  fi
+}
+
+# A role's REQUIRED live capabilities (e.g. an authenticated design-tool MCP), declared as a plain
+# comma-separated frontmatter field — `capabilities: figma` — never as a map hard-coded per role name
+# in this library. Absent field -> no capabilities required -> caller does no preflight at all.
+role_capabilities() {
+  local role=$1 raw
+  raw=$(role_field "$role" capabilities)
+  [ -n "$raw" ] || return 0
+  printf '%s\n' "$raw" | tr ',' '\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' | sed '/^$/d'
+}
+
+CAPABILITY_PREFLIGHT_TIMEOUT_MS=${CAPABILITY_PREFLIGHT_TIMEOUT_MS:-180000}
+
+# Deterministic probe text sent BEFORE any substantive brief, to a session that has just started.
+# The terminal snapshot capability_preflight_verdict parses always contains this prompt verbatim
+# (echoed by the terminal) followed by the agent's actual reply, and the prompt below necessarily
+# spells out the PASS/FAIL marker lines themselves as instructions — so the verdict is decided by the
+# LAST matching marker line in the snapshot, never by presence/absence or a count, so the agent's
+# genuine, most recent answer always wins over the instruction text that echoes ahead of it.
+capability_preflight_prompt() {
+  local caps=$1 line
+  printf 'CAPABILITY PREFLIGHT — verify access only; do not begin the task yet.\n\n'
+  printf 'For each capability listed below, call its tool live, right now, from this session, and\n'
+  printf 'confirm it responds authenticated. Do not fetch, summarize, or relay any external content\n'
+  printf 'while doing this: the check proves access, it never produces task output.\n\n'
+  printf 'Capabilities to verify:\n'
+  while IFS= read -r line; do
+    [ -n "$line" ] && printf -- '- %s\n' "$line"
+  done <<< "$caps"
+  printf '\nWhen every capability above is confirmed live and authenticated, output exactly this line\n'
+  printf 'as the LAST line of your entire reply, with nothing after it:\n'
+  printf 'CAPABILITY_PREFLIGHT_RESULT PASS\n\n'
+  printf 'If any capability is missing, unauthenticated, or errors, output exactly this line as the\n'
+  printf 'LAST line instead, naming the first capability that failed, with nothing after it:\n'
+  printf 'CAPABILITY_PREFLIGHT_RESULT FAIL <capability>\n'
+}
+
+# Fail-closed by construction, and immune to the prompt's own literal marker lines being present in
+# the same snapshot: only the LAST line in the output that matches a well-formed marker is
+# authoritative, and it must be exactly PASS. The prompt's embedded PASS/FAIL example lines are
+# always echoed BEFORE the agent's real reply in a terminal snapshot, so the agent's genuine, most
+# recent answer is always the one this looks at — never a count, and never presence/absence of any
+# earlier marker line. A well-formed marker is `CAPABILITY_PREFLIGHT_RESULT PASS` with nothing else
+# on the line, or `CAPABILITY_PREFLIGHT_RESULT FAIL` alone or followed by a capability name — bare
+# FAIL (no capability named) must still count as FAIL, not be silently ignored. Harmless chatter
+# around the marker that does not itself look like a marker line never affects the verdict. A FAIL as
+# the last marker (bare or named), a timeout with no reply, stray output with no marker at all, or a
+# malformed marker line (extra text glued onto PASS) are all failed probes.
+capability_preflight_verdict() {
+  local output=$1 trimmed last
+  trimmed=$(printf '%s\n' "$output" | sed -e 's/[[:space:]]*$//')
+  last=$(printf '%s\n' "$trimmed" \
+    | grep -E '^CAPABILITY_PREFLIGHT_RESULT PASS$|^CAPABILITY_PREFLIGHT_RESULT FAIL([[:space:]].*)?$' \
+    | tail -n 1) || true
+  [ "$last" = 'CAPABILITY_PREFLIGHT_RESULT PASS' ]
+}
+
+# Run the preflight against an already-started session, BEFORE the caller delivers the substantive
+# brief. Returns 0 (nothing to do, or probe passed) / 1 (probe failed or could not be delivered) —
+# the caller is responsible for never sending the substantive brief when this returns non-zero, and
+# for treating that as fail-closed (stop the run; do not mark the task dispatched).
+capability_preflight_pass() {
+  local engine=$1 name=$2 system=$3 role=$4 caps prompt output
+  caps=$(role_capabilities "$role") || true
+  [ -n "$caps" ] || return 0
+  prompt=$(capability_preflight_prompt "$caps")
+  engine_prompt "$engine" "$name" "$system" "$prompt" || return 1
+  herdr_call agent wait "$name" --timeout "$CAPABILITY_PREFLIGHT_TIMEOUT_MS" >/dev/null 2>&1 || true
+  output=$(herdr_call agent read "$name" --source recent-unwrapped --lines 200 2>/dev/null) || output=''
+  capability_preflight_verdict "$output"
+}
+
 engine_start() {
-  local engine=$1 task=$2 role_name=$3 role=$4 worktree=$5 generation=$6 workspace out tab pane name system model effort codex_env
+  local engine=$1 task=$2 role_name=$3 role=$4 worktree=$5 generation=$6 project_root=${7:-} workspace out tab pane name system model effort codex_env
   local -a args tab_args
   workspace=$(workspace_ensure) || return 1
   name=$(agent_runtime_name "$task-$engine-g$generation")
@@ -119,7 +219,10 @@ engine_start() {
       [ -z "$effort" ] || args+=(-c "model_reasoning_effort=\"$effort\"")
       ;;
   esac
-  [ "$engine" != claude ] || claude_trust_worktree "$worktree"
+  if [ "$engine" = claude ]; then
+    claude_trust_worktree "$worktree"
+    claude_inherit_mcp_config "$worktree" "$project_root"
+  fi
   if ! herdr_call agent start "$name" --kind "$engine" --pane "$pane" -- "${args[@]}" >/dev/null; then
     if [ "$engine" != claude ] || [ "$(agent_status "$name")" != blocked ] \
       || ! claude_accept_startup_trust_dialog "$name"; then

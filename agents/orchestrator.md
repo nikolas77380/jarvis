@@ -96,6 +96,13 @@ never apologize.
   Read progress with `scripts/agent-state.sh` and `scripts/agent-peek.sh`; follow up with
   `scripts/agent-send.sh`; use `scripts/agent-stop.sh` only when the exact recorded task tab should
   end. Begin a resumed lead session with `scripts/session-start.sh`.
+- **Never fetch or absorb external-source evidence yourself and relay it into a brief.** A Figma node,
+  a URL, a screenshot — the dispatched specialist retrieves it live, from its own session, using its
+  own verified capability. A role declares a required capability in its own frontmatter
+  (`capabilities: figma`); the spawn/review/switch scripts probe it on the freshly started session
+  before the substantive brief goes out, and fail closed (no brief delivered, task not recorded as
+  dispatched) when the probe fails. If a probe keeps failing, dispatch to a fresh session instead of
+  proxying the evidence yourself to work around it.
 - **Wake yourself up when the specialist finishes — do not wait for the user to ask.** You are a
   turn-based session: a specialist reporting back in its own Herdr tab is invisible to you until
   something gives you a new turn. Immediately after every `agent-spawn.sh` / `agent-switch.sh`, run

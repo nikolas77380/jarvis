@@ -1,11 +1,11 @@
 # 260902-1204-001 — macos-bootstrap
 
-**Status:** in-review · **Owner:** deputy · **Blocks:** — · **Depends on:** 260831-2017-001
+**Status:** in-review · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
 **Validation:** strict
 **Engine:** claude
 PR: #3
-**Next:** round 2 review's two blockers are closed at `c886b93` and independently reverified by
-deputy (targeted, not a third full round) — surface PR #3 to the user for the merge decision.
+**Next:** conflict-only reconciliation with origin/main is done at the tip recorded below; retry the
+already-approved merge of PR #3.
 
 ## What and why
 
@@ -226,3 +226,38 @@ cases, all 23 `tests/*.test.sh` files pass. `shellcheck bootstrap.sh` clean.
 `scripts/plan-check.sh` and `scripts/owns-check.sh` both ok. No new issues found.
 
 **Ready to merge**, pending the user's merge decision (merges to `main` are never auto-confirmed).
+
+## Merge reconciliation
+
+The user approved merging PR #3, but GitHub reported it is not cleanly mergeable and automatic
+`update-branch` also failed due to conflicts. Reconcile the existing branch with current
+`origin/main`, preserving both the reviewed bootstrap behavior and already-merged MCP/runtime work.
+Do not redesign or broaden the PR. Resolve only conflicts, rerun the full relevant suite and checks,
+push, and report the new tip. The existing merge approval remains valid for this conflict-only
+reconciliation; any substantive behavior change must stop for a new review/decision.
+
+**Done.** `git merge origin/main` produced three conflicts, all bookkeeping — no conflict touched
+`bootstrap.sh`, `bin/jarvis`, or any test file, so the reviewed behavior merged clean:
+
+1. `plan/260902-1204-001-macos-bootstrap.md` and `reports/260902-1204-001-shell-reviewer.md`
+   (add/add) — `origin/main`'s copies came in via PR #5 (`b7f3706`), whose branch had forked from
+   this task's branch mid-flight and carried a stale snapshot of both files (round 1 only, before
+   the round-1 fix delta and round 2 even happened) alongside its own unrelated herdr/MCP work.
+   This branch's history for both files is a strict superset, so both were resolved to this
+   branch's content (`git checkout --ours`).
+2. `plan/INDEX.md` — combined: kept `origin/main`'s two added rows for unrelated tasks
+   (`260902-1411-001`, `260902-1545-001`), kept this task's row, and refreshed its status/note to
+   `in-review · shell-engineer · reconciling with main` since the stale text on both sides
+   (`in-progress ... fixing round 1`) predated round 2.
+
+Everything else (`RULES.md`, `agents/design-qa.md`, `agents/orchestrator.md`,
+`scripts/agent-engine-lib.sh`, `scripts/agent-review.sh`, `scripts/agent-spawn.sh`,
+`scripts/agent-switch.sh`, `tasks/plan.md`, `tasks/todo.md`, the five new `tests/*.test.sh` files,
+and the other new `plan/`/`reports/` files) auto-merged with no conflict and is untouched
+already-merged work from `origin/main`.
+
+**Verification after resolving:** all 26 `tests/*.test.sh` suites pass individually (28 bootstrap +
+interactive cases included), `shellcheck bootstrap.sh` is clean, `shellcheck bin/jarvis` shows only
+the same three pre-existing SC1091s and one SC2034 round 1 already found outside the diff,
+`scripts/plan-check.sh` and `scripts/owns-check.sh` both pass (3 active cards, 6 claims, no
+overlap).
