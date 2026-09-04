@@ -1,10 +1,17 @@
 # 260903-1142-001 — auto-close-settled-agent-tabs
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
+**Status:** in-review · **Owner:** reviewer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
-PR: none yet
-**Next:** dispatch shell-engineer with the implementation brief under ## Implementation brief
+PR: #6
+**Next:** dispatch reviewer round 1 of 2 against PR #6 tip 96b3054; runtime metadata and event schema require logic tier
+
+## Engineer checkpoint
+
+PR #6 at `96b3054`. Adds acknowledged-event cleanup with frozen event identity, locked generation
+checks, exact-tab close, idempotence, retryable failure, and no cleanup for blocked. Engineer reports
+the full 21-file suite plus new cleanup tests, shellcheck, plan-check, and owns-check green. Full
+report: `reports/260903-1142-001-shell-engineer.md`; the diff is the evidence.
 
 <!--
 HOW TO USE THIS FILE

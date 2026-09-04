@@ -1,10 +1,20 @@
 # 260902-1411-001 — global-js-agent-roles
 
-**Status:** in-review · **Owner:** reviewer · **Blocks:** — · **Depends on:** —
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #4 — https://github.com/nikolas77380/jarvis/pull/4
-**Next:** dispatch reviewer round 1 of 2 on PR #4 tip 5a71d25, limited to the eight Owns files
+**Next:** hand PR #4 to shell-engineer for review-round-1 blockers and should-fix findings recorded below
+
+## Review round 1 checkpoint
+
+**Verdict:** REQUEST_CHANGES at `e24cef9`. Blocking: the new `tools:` frontmatter is inert while the
+runtime launches with unrestricted bypass permissions, so read-only deps-researcher authority is
+not enforced; and `agents/nestjs-reviewer.md` tells a read-only reviewer both to run and never run
+migrations. Also fix the reviewer verdict token/report contract, impossible engineer-to-researcher
+dispatch instruction, Next 16 `middleware.ts`/`proxy.ts` guidance, removed `next lint` command, and
+the vacuous global-fallback assertion. Full report is
+`reports/260902-1411-001-reviewer.md`. This is fix round 1; the next reviewer run is round 2 of 2.
 
 ## Goal
 

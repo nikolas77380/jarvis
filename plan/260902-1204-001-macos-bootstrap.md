@@ -1,10 +1,10 @@
 # 260902-1204-001 — macos-bootstrap
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
+**Status:** in-review · **Owner:** deputy · **Blocks:** — · **Depends on:** 260831-2017-001
 **Validation:** strict
 **Engine:** claude
 PR: #3
-**Next:** hand PR #3 back to shell-engineer for the two targeted round-2 findings, then verify only those hunks without a third full review
+**Next:** hand task to deputy for targeted verification of c886b93 only; no third full review
 
 ## What and why
 
@@ -176,3 +176,8 @@ The round ceiling is spent. Two targeted fixes remain: pin `ZDOTDIR` inside `run
 `docs/herdr-runtime.md` symlink-cycle sentence to match measured behavior. These are confined to the
 test helper and one documentation sentence. After the fix, verify only those two hunks and their
 focused cases; do not run a third full review.
+
+**Targeted fix:** `c886b93` pins and clears inherited `ZDOTDIR` in the two test helpers while
+preserving case 13's per-call override, and corrects the measured symlink-cycle documentation.
+Engineer reran 21/21 suites, shellcheck, plan-check, and owns-check successfully. Only targeted
+verification of these two hunks remains.
