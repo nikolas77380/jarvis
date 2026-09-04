@@ -8,6 +8,10 @@ Keep **8-10 entries** here; move older ones to `docs/overview-archive/YYYY-MM.md
 
 <!-- entries: new ones are inserted directly below this line -->
 
+## 2026-09-04 — macOS bootstrap merged
+
+PR #3 merged on 2026-09-04 after conflict-only reconciliation with main. The macOS bootstrap entrypoint is now available in main; 26 shell suites and targeted round-2 verification passed before merge.
+
 ## 2026-09-03 — Capability-aware design QA merged
 
 PR #5 merged as b7f3706 after two review rounds and targeted parser verification. Herdr now inherits Claude project-scoped MCP consent into task worktrees, runs declared capability preflight before substantive briefs, fails closed, and forbids the lead from proxying specialist evidence.

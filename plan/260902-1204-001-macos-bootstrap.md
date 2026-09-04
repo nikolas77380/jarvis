@@ -1,10 +1,10 @@
 # 260902-1204-001 — macos-bootstrap
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
+**Status:** done · **Owner:** lead · **Blocks:** — · **Depends on:** 260831-2017-001
 **Validation:** strict
 **Engine:** claude
 PR: #3
-**Next:** hand PR #3 to shell-engineer for conflict-only reconciliation with current origin/main, rerun checks, then retry the already approved merge
+**Next:** none — PR #3 merged on 2026-09-04
 
 ## What and why
 
