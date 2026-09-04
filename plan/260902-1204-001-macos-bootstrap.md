@@ -1,13 +1,11 @@
 # 260902-1204-001 — macos-bootstrap
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
+**Status:** in-review · **Owner:** deputy · **Blocks:** — · **Depends on:** 260831-2017-001
 **Validation:** strict
 **Engine:** claude
 PR: #3
-**Next:** hand PR #3 to the reviewer for round 2 of 2 (the last round) with
-`scripts/agent-review.sh 260902-1204-001 shell-reviewer --brief-file plan/260902-1204-001-macos-bootstrap.md --engine claude`,
-briefing it to review only `c29e209..015dd91` (the round-1 fix delta) but re-run every check in
-full. Full account of the fix: `reports/260902-1204-001-shell-engineer.md`, "round 2" section.
+**Next:** round 2 review's two blockers are closed at `c886b93` and independently reverified by
+deputy (targeted, not a third full round) — surface PR #3 to the user for the merge decision.
 
 ## What and why
 
@@ -203,3 +201,28 @@ test on an unexpected `brew`/`curl`). Idempotence is asserted rather than claime
 any `brew`/`curl` invocation; case 7 runs twice and counts the profile line). Homebrew is printed
 and never executed, with case 3 asserting no symlink and no `.zprofile`. The `pwd -P` fixture
 comment and the `docs/herdr-runtime.md` rationale for the resolution loop both earn their place.
+
+## Review round 2
+
+**Verdict:** REQUEST_CHANGES, two blockers, both mechanical/test-scope. **Round ceiling (2) spent** —
+resolved by targeted verification instead of a third full review.
+
+1. `ZDOTDIR` inherited from the environment was not pinned in the test helpers, so a real `ZDOTDIR`
+   on the reviewer's or CI's machine could make cases pass or fail for reasons unrelated to the code
+   under test.
+2. `docs/herdr-runtime.md`'s description of the symlink-cycle behavior didn't match what
+   `bootstrap.sh`'s 40-hop counter actually bounds (its own resolution loop, not the OS-level
+   invocation cycle, which `exec` already refuses).
+
+**Targeted fix at `c886b93`:** `unset ZDOTDIR` added at the top of both `tests/bootstrap.test.sh` and
+`tests/bootstrap-interactive.test.sh`, with `ZDOTDIR="${ZDOTDIR:-$dir/home}"` set in the env prefix
+of `run_bootstrap`/`run_bootstrap_pty`; case 13's per-invocation `ZDOTDIR` override preserved.
+`docs/herdr-runtime.md` reworded to match the actual bound.
+
+**Verified by deputy (targeted, not a full round):** both fixes confirmed correct by diff and by
+behavior — case 13 (custom `ZDOTDIR`) passes, and the doc's claim now matches `bootstrap.sh:12-13`'s
+counter. Full suite green: 21/21 `bootstrap.test.sh` cases + 3/3 `bootstrap-interactive.test.sh`
+cases, all 23 `tests/*.test.sh` files pass. `shellcheck bootstrap.sh` clean.
+`scripts/plan-check.sh` and `scripts/owns-check.sh` both ok. No new issues found.
+
+**Ready to merge**, pending the user's merge decision (merges to `main` are never auto-confirmed).
