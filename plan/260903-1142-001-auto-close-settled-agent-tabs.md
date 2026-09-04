@@ -4,7 +4,7 @@
 **Validation:** strict
 **Engine:** claude
 PR: #6
-**Next:** hand PR #6 back to shell-engineer for review-round-1 lifecycle trigger and event identity fixes
+**Next:** relaunch shell-engineer to diagnose why all specialist tabs disappear before acknowledgement, then make PR #6 preserve visible done tabs until terminal cleanup
 
 ## Engineer checkpoint
 
@@ -23,6 +23,19 @@ handoff, every generation has a unique durable completion identity, and only the
 is eligible for cleanup. Also correct automatic-close documentation, snapshot event identity under
 lock, rebase/reconcile with current main, and remeasure the merged-base suite. Full report:
 `reports/260903-1142-001-reviewer.md`. Next reviewer run is round 2 of 2.
+
+## Observed visibility regression
+
+On 2026-09-04, after three specialists settled, `herdr --session harness agent list` returned only
+the lead `jarvis`; all specialist tabs were absent before the lead acknowledged a terminal cleanup
+event. This violates the accepted contract independently of the new cleanup script. Before round 2,
+trace every actual tab-close path and any Herdr/agent auto-removal behavior. A `done` specialist must
+remain visible and readable until either a role handoff atomically replaces/closes that generation or
+the lead acknowledges its terminal done event and invokes generation-guarded cleanup. Add an
+end-to-end regression proving agent-list visibility before acknowledgement and disappearance only
+after the exact-tab cleanup. If the disappearance is caused outside this repository and cannot be
+controlled here, stop with the exact external boundary and a reproducible command; do not claim PR
+#6 fixes it merely because unit tests pass.
 
 <!--
 HOW TO USE THIS FILE

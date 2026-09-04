@@ -13,7 +13,7 @@ Owner: which agent, `user` when the decision is theirs, `lead` for the orchestra
 | [260902-1204-001](260902-1204-001-macos-bootstrap.md)               | macos bootstrap               | done        | lead           | 260831-2017-001 | PR #3 merged                       |
 | [260902-1411-001](260902-1411-001-global-js-agent-roles.md)         | global js agent roles         | needs-decision | user        | —               | PR #4 · choose tools enforcement     |
 | [260902-1545-001](260902-1545-001-capability-aware-design-qa.md)    | capability aware design qa    | done        | lead           | —               | PR #5 merged as b7f3706              |
-| [260903-1142-001](260903-1142-001-auto-close-settled-agent-tabs.md) | auto close settled agent tabs | in-progress | shell-engineer | —               | PR #6 · fixing lifecycle trigger     |
+| [260903-1142-001](260903-1142-001-auto-close-settled-agent-tabs.md) | auto close settled agent tabs | in-progress | shell-engineer | —               | PR #6 · diagnose premature tab loss  |
 
 ## Ordering that is not obvious
 
