@@ -1,10 +1,10 @@
 # 260903-1142-001 — auto-close-settled-agent-tabs
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
+**Status:** in-review · **Owner:** reviewer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #6
-**Next:** relaunch shell-engineer to diagnose why all specialist tabs disappear before acknowledgement, then make PR #6 preserve visible done tabs until terminal cleanup
+**Next:** dispatch reviewer round 2 of 2 on PR #6 delta 96b3054..5c40782, including external tab-loss reconciliation
 
 ## Engineer checkpoint
 
@@ -139,6 +139,16 @@ relevant shell tests, shellcheck, plan-check, and owns-check. Commit, push, open
 `reports/260903-1142-001-shell-engineer.md`, and return <=15 lines.
 
 ## Rounds
+
+## Visibility diagnosis and fix
+
+Live reproduction found stale metadata (`stopped=0` with recorded tab ids) whose tabs no longer
+exist in Herdr. No repository close path recorded `stopped_at`; human closure or terminal/server
+restart is external and has no hook available to this harness. PR #6 cannot preserve or resurrect a
+tab Herdr has already discarded. Commit `5c40782` makes exact-tab cleanup reconcile permanent
+`tab_not_found` to `stopped=1`, while transient close errors remain retryable failures. Tests, docs,
+full suite, shellcheck, plan-check, and owns-check pass. Branch tip with report/card is `b8db71a`.
+A proactive stale-metadata sweep is out of scope and may become a separate task.
 
 Append a `## Review round N` section per round: verdict, what was found, what was fixed, and anything
 deliberately left alone with the reason. `scripts/review-rounds.sh` compares these headings against
