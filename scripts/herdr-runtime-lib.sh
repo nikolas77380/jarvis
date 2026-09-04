@@ -264,13 +264,24 @@ atomic_meta_write() {
 # (manual stop) and agent-cleanup.sh (settled-tab auto-close) so both leave the task in the identical
 # terminal meta state; dies leaving `meta` untouched on close failure, so the caller's own state
 # (e.g. an acknowledged event) survives for a retry.
+#
+# A tab can vanish from Herdr entirely through no path this repo controls — a human closing it
+# directly in the terminal, the terminal app or Herdr server restarting, the machine sleeping — and
+# nothing here is notified when that happens (reproduced 2026-09-04: several already-merged tasks'
+# recorded tabs were gone from `herdr tab list` outright, `.meta` still said stopped=0, and no
+# close/switch/review/cleanup path in this repo had touched them). Herdr reports that case as exit
+# 1 with error code `tab_not_found`, which is not retryable — the tab will never come back — so it
+# reconciles to the same stopped=1 terminal state a real close reaches. Any other close failure
+# (Herdr unreachable, tab busy, etc.) still dies exactly as before.
 close_recorded_tab() {
-  local id=$1 meta=$2 session tab tmp
+  local id=$1 meta=$2 session tab tmp out code
   session=$(meta_get "$meta" session)
   tab=$(meta_get "$meta" tab)
   [ -n "$tab" ] || die "metadata has no Herdr tab for $id"
-  herdr --session "$session" tab close "$tab" >/dev/null \
-    || die "could not close Herdr tab $tab; metadata left active"
+  if ! out=$(herdr --session "$session" tab close "$tab" 2>&1); then
+    code=$(printf '%s' "$out" | jq -r '.error.code // empty' 2>/dev/null) || code=''
+    [ "$code" = tab_not_found ] || die "could not close Herdr tab $tab; metadata left active"
+  fi
   tmp=$(mktemp "$HARNESS_STATE/.stop-meta.XXXXXX")
   sed 's/^stopped=.*/stopped=1/' "$meta" > "$tmp"
   printf 'stopped_at=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$tmp"

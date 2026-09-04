@@ -104,9 +104,12 @@ generation history. Calling `jarvis` attaches to that binding instead of creatin
   relaunch — is a safe no-op that leaves the replacement tab untouched. It shares
   `close_recorded_tab()` (`herdr-runtime-lib.sh`) with `agent-stop.sh`, so a settled task ends in the
   identical terminal `stopped=1` state either way. A close failure leaves the acknowledgement and
-  metadata exactly as they were, exits non-zero, and is safe to retry by re-running the same command.
-  Both the identity match and the already-stopped case are idempotent no-ops, so re-running cleanup on
-  an event already acted on is harmless.
+  metadata exactly as they were, exits non-zero, and is safe to retry by re-running the same command
+  — except when Herdr itself has already forgotten the tab (error code `tab_not_found`: a human closed
+  it directly, or the terminal/Herdr session restarted — nothing in this repo did it, and nothing here
+  is notified when it happens), which is not retryable and reconciles straight to `stopped=1` instead
+  of dying forever. Both the identity match and the already-stopped case are idempotent no-ops, so
+  re-running cleanup on an event already acted on is harmless.
 - Session start prints active card/runtime reconciliation without mutating Herdr.
 - Context-size and spend scripts remain diagnostic. Context size never forces handoff or `/clear`.
 

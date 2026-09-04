@@ -23,6 +23,10 @@ printf '%s\n' "$*" >> "$FAKE_HERDR_LOG"
 args=" $* "
 case "$args" in
   *" tab close "*)
+    if [ "${FAKE_TAB_CLOSE_NOT_FOUND:-0}" = 1 ]; then
+      printf '%s\n' '{"error":{"code":"tab_not_found","message":"tab not found"}}'
+      exit 1
+    fi
     if [ "${FAKE_TAB_CLOSE_FAIL:-0}" = 1 ]; then exit 1; fi
     printf '%s\n' '{"result":{"ok":true}}'
     ;;
@@ -197,5 +201,55 @@ test "$EVENT4A" != "$EVENT4B"
 "$TMP/scripts/inbox.sh" acknowledge "$EVENT4B" >/dev/null
 "$TMP/scripts/agent-cleanup.sh" "$EVENT4B" | grep -q 'closed settled tab tabY'
 grep -qx 'stopped=1' "$TMP/state/t4.meta"
+
+# --- scenario 5: tab already closed out-of-band (e.g. a human closed it, or the terminal session --
+# --- restarted) settles as a reconciled no-op instead of dying forever -------------------------
+# Reproduced live on 2026-09-04: several settled/merged tasks' recorded tabs had vanished from
+# `herdr tab list` entirely (not merely `agent list`) while their `.meta` still said stopped=0 —
+# nothing in this repo had closed them. `herdr tab close` on a gone tab returns exit 1 with
+# {"error":{"code":"tab_not_found",...}}; that must reconcile to the same stopped=1 terminal state
+# a normal close reaches, never a permanent die, since retrying can never succeed once Herdr itself
+# has forgotten the tab.
+write_meta t5 agent_t5 tabD 1
+cat > "$TMP/snap-5a.json" <<'JSON'
+{"schema":"harness-fleet-snapshot.v1","tasks":[
+ {"task":"t5","runtime":{"observed":"working"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}}
+]}
+JSON
+FAKE_SNAPSHOT="$TMP/snap-5a.json" "$TMP/scripts/events-poll.sh" >/dev/null
+cat > "$TMP/snap-5b.json" <<'JSON'
+{"schema":"harness-fleet-snapshot.v1","tasks":[
+ {"task":"t5","runtime":{"observed":"done"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}}
+]}
+JSON
+FAKE_SNAPSHOT="$TMP/snap-5b.json" "$TMP/scripts/events-poll.sh" >/dev/null
+EVENT5=$("$TMP/scripts/inbox.sh" list --json | jq -r '.[] | select(.task=="t5" and .type=="agent-done") | .id')
+"$TMP/scripts/inbox.sh" acknowledge "$EVENT5" >/dev/null
+
+BEFORE=$(tab_close_count)
+FAKE_TAB_CLOSE_NOT_FOUND=1 "$TMP/scripts/agent-cleanup.sh" "$EVENT5" | grep -q 'closed settled tab tabD'
+test "$(tab_close_count)" = "$((BEFORE + 1))"
+grep -qx 'stopped=1' "$TMP/state/t5.meta"
+
+# a genuine (non-not_found) close failure must still die and remain retryable — unchanged contract
+write_meta t5b agent_t5b tabE 1
+cat > "$TMP/snap-5c.json" <<'JSON'
+{"schema":"harness-fleet-snapshot.v1","tasks":[
+ {"task":"t5b","runtime":{"observed":"working"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}}
+]}
+JSON
+FAKE_SNAPSHOT="$TMP/snap-5c.json" "$TMP/scripts/events-poll.sh" >/dev/null
+cat > "$TMP/snap-5d.json" <<'JSON'
+{"schema":"harness-fleet-snapshot.v1","tasks":[
+ {"task":"t5b","runtime":{"observed":"done"},"worktree":{"head":"h1"},"cleanSlate":{"state":"none"}}
+]}
+JSON
+FAKE_SNAPSHOT="$TMP/snap-5d.json" "$TMP/scripts/events-poll.sh" >/dev/null
+EVENT5B=$("$TMP/scripts/inbox.sh" list --json | jq -r '.[] | select(.task=="t5b" and .type=="agent-done") | .id')
+"$TMP/scripts/inbox.sh" acknowledge "$EVENT5B" >/dev/null
+if FAKE_TAB_CLOSE_FAIL=1 "$TMP/scripts/agent-cleanup.sh" "$EVENT5B" >/dev/null 2>&1; then
+  echo 'cleanup unexpectedly succeeded despite a non-not_found close failure' >&2; exit 1
+fi
+grep -qx 'stopped=0' "$TMP/state/t5b.meta"
 
 echo 'agent cleanup tests: ok'
