@@ -4,8 +4,9 @@
 **Validation:** strict
 **Engine:** claude
 PR: #6
-**Next:** dispatch reviewer (logic tier — touches runtime metadata and the event schema) against
-PR #6; round 1 of 2.
+**Next:** dispatch reviewer (logic tier) against PR #6 at the fix-round tip for round 2 of 2 — read
+only the delta since `96b3054` plus the "## Review round 1" findings below; the full suite still
+runs in full.
 
 ## Inventory findings (2026-09-03)
 
@@ -148,3 +149,52 @@ None. Resolved 2026-09-03: only `done` auto-closes (see "Resolved" above); `bloc
 Append a `## Review round N` section per round: verdict, what was found, what was fixed, and anything
 deliberately left alone with the reason. `scripts/review-rounds.sh` compares these headings against
 what actually ran in the transcripts, and the ceiling is two.
+
+## Review round 1
+
+**Verdict:** REQUEST_CHANGES at `96b3054`. Mechanics (ack-gating, exact-tab targeting, generation
+guard, idempotence, retryable close failure, blocked refusal) held under test, but two blockers sat
+one level up: (1) the orchestrator rule this design hung cleanup on told the lead to run
+`agent-cleanup.sh` right after acknowledging any engineer's `agent-done`, which marks the task
+`stopped=1` and bricks the very next `agent-review.sh`/`agent-switch.sh` handoff ("use a relaunch
+flow"); (2) the event dedup key was `type+generation` where `generation` was the literal string
+`"done-$HEAD"` — a reviewer generation that commits nothing settles at the same HEAD as the engineer
+generation before it, so their done events collided, silently losing the reviewer's event and
+permanently orphaning the tab that actually accumulates. Medium: `docs/herdr-runtime.md` claimed
+settled tabs close "automatically" when nothing invokes cleanup unattended, and called it "the only
+auto-close path" when `agent-review.sh`/`agent-switch.sh` also close tabs as part of a handoff. Low:
+`events-poll.sh` assembles the frozen identity from six unlocked reads of the task `.meta` (fails
+safe via the generation match at close time, but the comment overclaimed a guarantee nothing
+enforces); the PR's "21 files" test-count claim was arithmetic, not a measurement, and the branch
+predated PR #5 so the merged tree was never actually exercised; the branch does not merge cleanly
+into `origin/main` (4 conflicting docs/plan files). Full report:
+`reports/260903-1142-001-reviewer.md`.
+
+**Fix:** `56e8619` reworded the `agents/orchestrator.md` and `docs/herdr-runtime.md` rules so
+`agent-cleanup.sh` is run only for a generation the lead has decided will not be handed to another
+agent — never as a reflex after every acknowledged done — since `agent-review.sh`/`agent-switch.sh`
+already close the outgoing tab themselves as the last step of their own handoff. `events-poll.sh` now
+keys the `agent-done` dedup id on `$RUNTIME-$HEAD-g$DONE_GENERATION` (falling back to the old
+`$RUNTIME-$HEAD` when no task meta is resolvable), so every execution generation gets its own event
+even at an unchanged HEAD. Added `tests/agent-cleanup.test.sh` scenario 4: two generations settling
+at the same HEAD emit two distinct `agent-done` events with the right frozen identity each, and only
+the current generation's event can actually close its tab. Softened the unlocked-read comment in
+`events-poll.sh` to describe the actual fail-safe property instead of an unenforced guarantee, and
+corrected the "automatically"/"only auto-close path" claims in `docs/herdr-runtime.md` and
+`docs/inbox-and-decisions.md`. Merged `origin/main` (`f7634b8`) to pick up PR #5, resolving the 4
+conflicts by keeping this branch's newer content (`agents/orchestrator.md`: both rules are additive
+and independent, kept both; `OVERVIEW.md`/`plan/INDEX.md`: unioned in the missing PR #5 entries;
+`plan/260902-1545-001-capability-aware-design-qa.md`: an add/add conflict where this branch's own
+prior commit already carried the fuller, accurate "done, PR #5 merged" content that `origin/main`'s
+side lacked, kept this branch's version). Full suite on the merged tree: 25/25 (was 20 on the
+pre-merge branch, 25 confirmed by round 1's own trial merge). shellcheck -S warning, plan-check, and
+owns-check all clean.
+
+**Left alone:** the six unlocked `.meta` reads in `events-poll.sh` are not moved under the task's
+state lock. `harness-state-lib.sh`'s lock is a single global slot (`state_lock_acquire`/`_release`
+track one `STATE_LOCK_DIR`, not a stack), and `events-poll.sh` already holds the `inbox` lock for its
+whole run; nesting a per-task lock inside it with the existing helper would silently drop the `inbox`
+lock's own mutual exclusion the moment the nested lock releases (a strictly worse race than the one
+being fixed), for a benefit the generation/fingerprint match at close time already provides. Fixing
+it properly means teaching the lock helper to stack, which is a change to `harness-state-lib.sh`
+outside this task's `Owns:` and unrelated to the lifecycle/identity defects the brief asked for.
