@@ -40,15 +40,19 @@ BRANCH=$(git -C "$WORKTREE" branch --show-current); HEAD=$(git -C "$WORKTREE" re
 RAW_STATUS=$(git -C "$WORKTREE" status --porcelain)
 STATUS=$(printf '%s\n' "$RAW_STATUS" | sed -n '1,80p')
 FINGERPRINT=$(printf '%s\n%s\n%s' "$BRANCH" "$HEAD" "$RAW_STATUS" | git hash-object --stdin)
-AGENT=$(meta_get "$META" agent); PROJECT=$(meta_get "$META" project); ROLE=$(role_path "$PROJECT" "$AGENT")
+AGENT=$(meta_get "$META" agent); PROJECT=$(meta_get "$META" project); PROJECT_ROOT=$(meta_get "$META" project_root); ROLE=$(role_path "$PROJECT" "$AGENT")
 [ -f "$ROLE" ] || die "role definition not found for $AGENT (checked projects/$PROJECT/agents/ and agents/)"
 CARD=$(task_card "$ID"); BRIEF=$(card_brief "$CARD"); GENERATION=$(meta_get "$META" generation); GENERATION=${GENERATION:-1}; GENERATION=$((GENERATION + 1))
 HARNESS_HERDR_SESSION=$SESSION
-LAUNCH=$(engine_start "$TARGET" "$ID" "$AGENT" "$ROLE" "$WORKTREE" "$GENERATION") || die "could not start target engine=$TARGET; old agent preserved"
+LAUNCH=$(engine_start "$TARGET" "$ID" "$AGENT" "$ROLE" "$WORKTREE" "$GENERATION" "$PROJECT_ROOT") || die "could not start target engine=$TARGET; old agent preserved"
 NEW_TAB=$(printf '%s' "$LAUNCH" | jq -r '.tab'); NEW_PANE=$(printf '%s' "$LAUNCH" | jq -r '.pane'); NEW_NAME=$(printf '%s' "$LAUNCH" | jq -r '.name'); NEW_SYSTEM=$(printf '%s' "$LAUNCH" | jq -r '.system'); NEW_WORKSPACE=$(printf '%s' "$LAUNCH" | jq -r '.workspace')
 NOW_BRANCH=$(git -C "$WORKTREE" branch --show-current); NOW_HEAD=$(git -C "$WORKTREE" rev-parse HEAD); NOW_STATUS=$(git -C "$WORKTREE" status --porcelain)
 NOW_FINGERPRINT=$(printf '%s\n%s\n%s' "$NOW_BRANCH" "$NOW_HEAD" "$NOW_STATUS" | git hash-object --stdin)
 if [ "$FINGERPRINT" != "$NOW_FINGERPRINT" ]; then herdr_call tab close "$NEW_TAB" >/dev/null 2>&1 || true; die "worktree changed during switch; old agent preserved"; fi
+if ! capability_preflight_pass "$TARGET" "$NEW_NAME" "$NEW_SYSTEM" "$ROLE"; then
+  herdr_call tab close "$NEW_TAB" >/dev/null 2>&1 || true
+  die "capability preflight failed for $AGENT on engine=$TARGET; switch refused, old agent preserved"
+fi
 HANDOFF=$(cat <<EOF
 # Engine handoff
 
