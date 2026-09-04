@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+SOURCE_HOPS=0
+while [ -h "$SOURCE" ]; do
+  SOURCE_HOPS=$((SOURCE_HOPS + 1))
+  if [ "$SOURCE_HOPS" -gt 40 ]; then
+    echo "error: symlink cycle resolving jarvis's own location" >&2
+    exit 1
+  fi
+  SOURCE_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  case "$SOURCE" in
+    /*) ;;
+    *) SOURCE="$SOURCE_DIR/$SOURCE" ;;
+  esac
+done
+ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 # shellcheck source=scripts/herdr-runtime-lib.sh
 . "$ROOT/scripts/herdr-runtime-lib.sh"
 # shellcheck source=scripts/harness-state-lib.sh
