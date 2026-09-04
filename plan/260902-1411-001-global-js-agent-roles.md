@@ -1,10 +1,10 @@
 # 260902-1411-001 — global-js-agent-roles
 
-**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
+**Status:** needs-decision · **Owner:** user · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #4 — https://github.com/nikolas77380/jarvis/pull/4
-**Next:** hand PR #4 to shell-engineer for review-round-1 blockers and should-fix findings recorded below
+**Next:** user chooses instruction-only read-only authority or expands scope to runtime-enforced tool restrictions before review round 2
 
 ## Review round 1 checkpoint
 
@@ -15,6 +15,12 @@ migrations. Also fix the reviewer verdict token/report contract, impossible engi
 dispatch instruction, Next 16 `middleware.ts`/`proxy.ts` guidance, removed `next lint` command, and
 the vacuous global-fallback assertion. Full report is
 `reports/260902-1411-001-reviewer.md`. This is fix round 1; the next reviewer run is round 2 of 2.
+
+**Fix checkpoint:** `e92327d` plus report `54b1a63` closes every recorded content finding and passes
+24/24 tests plus plan/ownership checks. For inert `tools:` frontmatter, engineer removed the false
+runtime-enforcement claim and made the authority explicitly instruction-based rather than changing
+shared `agent-engine-lib.sh` outside this card's Owns. User must confirm this direction before the
+last review round, or explicitly expand scope to real runtime enforcement.
 
 ## Goal
 

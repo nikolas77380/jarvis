@@ -1,10 +1,10 @@
 # 260903-1142-001 — auto-close-settled-agent-tabs
 
-**Status:** in-review · **Owner:** reviewer · **Blocks:** — · **Depends on:** —
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
 PR: #6
-**Next:** dispatch reviewer round 1 of 2 against PR #6 tip 96b3054; runtime metadata and event schema require logic tier
+**Next:** hand PR #6 back to shell-engineer for review-round-1 lifecycle trigger and event identity fixes
 
 ## Engineer checkpoint
 
@@ -12,6 +12,17 @@ PR #6 at `96b3054`. Adds acknowledged-event cleanup with frozen event identity, 
 checks, exact-tab close, idempotence, retryable failure, and no cleanup for blocked. Engineer reports
 the full 21-file suite plus new cleanup tests, shellcheck, plan-check, and owns-check green. Full
 report: `reports/260903-1142-001-shell-engineer.md`; the diff is the evidence.
+
+## Review round 1
+
+**Verdict:** REQUEST_CHANGES at `96b3054`. Cleanup after acknowledging an engineer `done` marks the
+task stopped before reviewer handoff, while handoff scripts already close intermediate tabs. The
+final reviewer tab that actually accumulates may never emit a new event because event ids dedupe on
+`done-$HEAD` and reviewers often make no commit. Fix the lifecycle so acknowledgement cannot block
+handoff, every generation has a unique durable completion identity, and only the truly terminal tab
+is eligible for cleanup. Also correct automatic-close documentation, snapshot event identity under
+lock, rebase/reconcile with current main, and remeasure the merged-base suite. Full report:
+`reports/260903-1142-001-reviewer.md`. Next reviewer run is round 2 of 2.
 
 <!--
 HOW TO USE THIS FILE

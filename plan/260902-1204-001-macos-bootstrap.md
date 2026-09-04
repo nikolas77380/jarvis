@@ -1,10 +1,10 @@
 # 260902-1204-001 — macos-bootstrap
 
-**Status:** in-review · **Owner:** deputy · **Blocks:** — · **Depends on:** 260831-2017-001
+**Status:** needs-decision · **Owner:** user · **Blocks:** — · **Depends on:** 260831-2017-001
 **Validation:** strict
 **Engine:** claude
 PR: #3
-**Next:** hand task to deputy for targeted verification of c886b93 only; no third full review
+**Next:** user approves or declines merge of PR #3
 
 ## What and why
 
@@ -181,3 +181,7 @@ focused cases; do not run a third full review.
 preserving case 13's per-call override, and corrects the measured symlink-cycle documentation.
 Engineer reran 21/21 suites, shellcheck, plan-check, and owns-check successfully. Only targeted
 verification of these two hunks remains.
+
+**Targeted verification:** PASS. Deputy confirmed both hunks and behavior independently; all 23
+shell test files, 21 bootstrap cases, 3 interactive cases, shellcheck, plan-check, and owns-check
+pass. PR #3 is ready for the user's merge decision.
