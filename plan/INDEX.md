@@ -10,7 +10,7 @@ Owner: which agent, `user` when the decision is theirs, `lead` for the orchestra
 | id                                                                  | task                          | status      | owner          | depends on      | note                                 |
 | ------------------------------------------------------------------- | ----------------------------- | ----------- | -------------- | --------------- | ------------------------------------ |
 | [260831-2017-001](260831-2017-001-root-project-adapter.md)          | root project adapter          | done        | lead           | —               | PR #2 merged as 7bb4828              |
-| [260902-1204-001](260902-1204-001-macos-bootstrap.md)               | macos bootstrap               | needs-decision | user        | 260831-2017-001 | PR #3 · ready for merge              |
+| [260902-1204-001](260902-1204-001-macos-bootstrap.md)               | macos bootstrap               | in-progress | shell-engineer | 260831-2017-001 | PR #3 · resolving merge conflicts    |
 | [260902-1411-001](260902-1411-001-global-js-agent-roles.md)         | global js agent roles         | needs-decision | user        | —               | PR #4 · choose tools enforcement     |
 | [260902-1545-001](260902-1545-001-capability-aware-design-qa.md)    | capability aware design qa    | done        | lead           | —               | PR #5 merged as b7f3706              |
 | [260903-1142-001](260903-1142-001-auto-close-settled-agent-tabs.md) | auto close settled agent tabs | in-progress | shell-engineer | —               | PR #6 · fixing lifecycle trigger     |

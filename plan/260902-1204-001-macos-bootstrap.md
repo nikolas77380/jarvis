@@ -1,10 +1,10 @@
 # 260902-1204-001 — macos-bootstrap
 
-**Status:** needs-decision · **Owner:** user · **Blocks:** — · **Depends on:** 260831-2017-001
+**Status:** in-progress · **Owner:** shell-engineer · **Blocks:** — · **Depends on:** 260831-2017-001
 **Validation:** strict
 **Engine:** claude
 PR: #3
-**Next:** user approves or declines merge of PR #3
+**Next:** hand PR #3 to shell-engineer for conflict-only reconciliation with current origin/main, rerun checks, then retry the already approved merge
 
 ## What and why
 
@@ -185,3 +185,12 @@ verification of these two hunks remains.
 **Targeted verification:** PASS. Deputy confirmed both hunks and behavior independently; all 23
 shell test files, 21 bootstrap cases, 3 interactive cases, shellcheck, plan-check, and owns-check
 pass. PR #3 is ready for the user's merge decision.
+
+## Merge reconciliation
+
+The user approved merging PR #3, but GitHub reported it is not cleanly mergeable and automatic
+`update-branch` also failed due to conflicts. Reconcile the existing branch with current
+`origin/main`, preserving both the reviewed bootstrap behavior and already-merged MCP/runtime work.
+Do not redesign or broaden the PR. Resolve only conflicts, rerun the full relevant suite and checks,
+push, and report the new tip. The existing merge approval remains valid for this conflict-only
+reconciliation; any substantive behavior change must stop for a new review/decision.
