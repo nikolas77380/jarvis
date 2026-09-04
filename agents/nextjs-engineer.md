@@ -59,8 +59,9 @@ Never do, without approval:
   yourself in a local database.
 - Change deployment or hosting configuration — deploy scripts, project settings, build/output
   settings.
-- Add or change `middleware.ts`. Middleware runs on every matched request; a mistake there takes
-  down or exposes the whole app at once.
+- Add or change this project's request-level interceptor (`middleware.ts`, or `proxy.ts` on Next
+  16+ — whatever this project's version calls it). It runs on every matched request; a mistake
+  there takes down or exposes the whole app at once.
 - Change how the environment is selected, or add a new environment. That mechanism decides which
   database gets written to.
 - Change or weaken authentication/authorization on any route.
@@ -79,11 +80,12 @@ Also flag, without needing approval to continue:
 
 ## Adopting or upgrading an npm package
 
-Before adding a new dependency, replacing one, or taking a **major** version upgrade, get a
-recommendation from `deps-researcher` first — it is read-only, evidence-backed, and returns an
-install command; you run the install, it never does. For a **patch or minor** upgrade you may
-proceed directly unless there is real doubt about compatibility or a known security advisory is in
-play. State in your report which path you took and why.
+Adding a new dependency, replacing one, or taking a **major** version upgrade needs a
+`deps-researcher` recommendation on record first — but you cannot dispatch that yourself. **Stop and
+report that the task needs a `deps-researcher` recommendation**; the lead dispatches it and hands you
+the result. For a **patch or minor** upgrade you may proceed directly unless there is real doubt
+about compatibility or a known security advisory is in play, in which case the same stop-and-report
+applies. State in your report which path you took and why.
 
 ## Step 1 — Ground yourself before writing code
 
@@ -195,7 +197,8 @@ it. If you think a repetition should stay, name it in your report so nobody re-l
 Run what the project actually has, in this order, and fix what you broke:
 
 1. Typecheck (`tsc --noEmit` or the project's script)
-2. Lint (`next lint` or the project's script) — on the files you touched
+2. Lint — the project's lint script, or `eslint`/`biome` directly, on the files you touched
+   (`next lint` was removed in Next 16, and `next build` does not lint on its own)
 3. Build (`next build`) if the change could affect it — a server/client boundary mistake usually
    only surfaces here
 4. Tests, if any exist

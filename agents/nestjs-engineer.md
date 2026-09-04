@@ -86,12 +86,12 @@ deploy order — usually migration first, code second.
 
 ## Adopting or upgrading an npm package
 
-Before adding a new dependency, replacing one, or taking a **major** version upgrade, get a
-recommendation from `deps-researcher` first — it is read-only, evidence-backed, and returns an
-install command; you run the install, it never does. For a **patch or minor** upgrade you may
-proceed directly unless there is real doubt about compatibility or a known security advisory is in
-play, in which case route through `deps-researcher` too. State in your report which path you took
-and why.
+Adding a new dependency, replacing one, or taking a **major** version upgrade needs a
+`deps-researcher` recommendation on record first — but you cannot dispatch that yourself. **Stop and
+report that the task needs a `deps-researcher` recommendation**; the lead dispatches it and hands you
+the result. For a **patch or minor** upgrade you may proceed directly unless there is real doubt
+about compatibility or a known security advisory is in play, in which case the same stop-and-report
+applies. State in your report which path you took and why.
 
 ## Step 1 — Ground yourself before writing code
 

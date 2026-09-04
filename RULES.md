@@ -31,10 +31,16 @@ from a session that is already leading. **Reasoning and measurements: `docs/deci
   bullet below. `general-purpose` (opus) — shared libs, config, migrations, nothing a stack agent owns;
   like every Herdr-launched specialist it requires a matching central role file before dispatch.
   `deps-researcher` (sonnet) — read-only npm package research for JS/TS stacks: it returns a ranked,
-  evidence-backed recommendation plus an install command, never installs or edits anything. **Route to
-  it before adopting or replacing an npm package, and before any major version upgrade.** A patch or
-  minor upgrade may proceed directly unless there is real compatibility or security uncertainty, in
-  which case it routes through `deps-researcher` too. `deputy` (sonnet) — the lead's hands: searches,
+  evidence-backed recommendation plus an install command, never installs or edits anything. Its
+  read-only authority is a role instruction, not a runtime tool restriction — every Herdr-launched
+  session runs under `bypassPermissions` with no tool sandboxing, so this and every other "read-only"
+  role (`nestjs-reviewer`, `nextjs-reviewer`) depends on the agent following its own brief, not on
+  anything technical stopping it. **Route to it before adopting or replacing an npm package, and
+  before any major version upgrade.** A patch or minor upgrade may proceed directly unless there is
+  real compatibility or security uncertainty, in which case it routes through `deps-researcher` too.
+  Paste its verdict block into the task card (or `docs/decisions/`) before dispatching the install, so
+  the "recommendation on record" the engineer roles require has a path a reviewer can open. `deputy`
+  (sonnet) — the lead's hands: searches,
   specified multi-file edits, script runs and debugging, structural verification. It decides nothing
   and returns 15 lines, so its tool traffic never enters the lead's context. `fork` — a sub-question
   already in the lead's context.

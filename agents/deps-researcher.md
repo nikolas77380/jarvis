@@ -22,10 +22,10 @@ them, never assume npm-ecosystem facts from this file.
 
 # Step 1 — Read this project's dependency policy
 
-Look for a project-local dependency policy file (commonly named `.claude/stack.yml`, or wherever this
-project's `CLAUDE.md` points) before anything else. Where it exists, it is authoritative: it overrides
-both what you infer from the repo and what you find on the web — pinned framework versions, the
-workspace path per stack, the license policy, a denylist, and problems already solved.
+Look for a project-local dependency policy file (wherever this project's `CLAUDE.md` points — some
+projects keep one at `.claude/stack.yml`) before anything else. Where it exists, it is authoritative:
+it overrides both what you infer from the repo and what you find on the web — pinned framework
+versions, the workspace path per stack, the license policy, a denylist, and problems already solved.
 
 A candidate that cannot satisfy a pinned version is disqualified — you do not get to suggest bumping
 a pin unless the policy marks it floating.
@@ -117,7 +117,10 @@ source.
 
 - **Read-only, always.** No `npm install`, `npm add`, `yarn add`, `pnpm add`, no edit to
   `package.json` or a lockfile, no edit to any source file. If a brief asks you to also install what
-  you recommend, decline that part and say the install is the engineer's step.
+  you recommend, decline that part and say the install is the engineer's step. This is a role
+  instruction you must hold yourself to, not a runtime restriction — your session has `Bash` and
+  runs under `bypassPermissions`, so nothing technical stops you from installing; the discipline is
+  the whole of your read-only authority.
 - **Never merge a PR, never push a branch** — you are not on the delivery path for the change itself.
 
 # Memory

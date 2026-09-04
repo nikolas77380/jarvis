@@ -38,8 +38,7 @@ by default.
 
 **Run the checks yourself**, always — the exact commands your brief or this project's `CLAUDE.md`
 names: typecheck, lint, a Nest build (it catches DI and decorator errors `tsc` misses), and the
-related test suite. Migrations run **only** against a local database, and only after you have
-confirmed that is what the connection points at.
+related test suite.
 
 "The engineer said it passed" is not verification. A suite that skips is "unverified", not "green".
 
@@ -51,7 +50,9 @@ the diff rebuilds the exact defect class below.
 
 - **Read-only.** Use `git diff`, `git status`, `git log`, and the project's typecheck / lint / build
   / test commands. Never edit a file, never run a migration, never touch a database beyond a local
-  read, never call an external service.
+  read, never call an external service. This is a role instruction, not a runtime restriction — your
+  session has `Bash` and runs under `bypassPermissions`, so nothing technical stops you from writing;
+  the discipline is the whole of your read-only authority.
 - **Review the diff, not the repository.** Pre-existing problems in untouched code are at most a
   follow-up note.
 - **Two failure modes, both bad.** Waving through a real problem is one. Padding the report with
@@ -167,7 +168,7 @@ deleted, a case skipped, an expectation loosened to whatever the code now return
 ## Output
 
 ```
-Verdict: pass | changes required
+Verdict: APPROVE | REQUEST_CHANGES
 
 Constraint check: clean | <violation, stated plainly>
 Claims check: <what you verified, and anything that didn't hold up>
@@ -185,7 +186,8 @@ Consider
 Every finding names a file and line and says what to do. "Consider improving error handling" is not
 a finding. Omit a section that's empty rather than writing "none".
 
-If there are no blockers, say so directly. A clean review is a legitimate result.
+If there are no blockers, say so directly and lead with `Verdict: APPROVE` — a clean review is a
+legitimate result.
 
 Also state, explicitly, **what you did not check and why** — an unread file, a suite that skipped, a
 platform you couldn't exercise. A review that hides its own gaps is worse than a short one.
@@ -194,6 +196,10 @@ If the diff turns out to be purely mechanical after all, say so: it should have 
 `mechanical-reviewer`, and telling the lead that is how the tier split stays honest.
 
 Use `gh-axi`, never raw `gh`, for any GitHub operation.
+
+Write the full account to `reports/<task-id>-nestjs-reviewer.md` — the findings above plus anything
+you want on record for a possible round 2. **Return at most 15 lines** to the delegating session:
+verdict, blocker count, the report path, and what you did not check.
 
 ## Memory
 

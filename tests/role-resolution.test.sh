@@ -140,7 +140,10 @@ for entry in "${GLOBAL_ROLES[@]}"; do
   fi
 done
 
-# deps-researcher is read-only: its declared tools must exclude Edit/Write, and it must say so.
+# deps-researcher's tools: line is a DECLARATION the harness runtime does not enforce (nothing in
+# engine_start restricts tool access — see RULES.md's note on this), not a runtime restriction. This
+# checks that the declaration excludes Edit/Write and that the role says it is read-only, never that
+# the runtime actually stops it from writing.
 DR="$ROOT/agents/deps-researcher.md"
 grep -qE '^tools: ' "$DR" || { echo "deps-researcher: missing tools: line" >&2; exit 1; }
 if grep -E '^tools: ' "$DR" | grep -qE '\b(Edit|Write)\b'; then
@@ -150,11 +153,10 @@ fi
 grep -qi 'read-only' "$DR" || { echo "deps-researcher: must state it is read-only" >&2; exit 1; }
 grep -qi 'never install' "$DR" || { echo "deps-researcher: must state it never installs" >&2; exit 1; }
 
-# Global fallback behavior: agent-spawn.sh resolution order (project-local override first, then
-# harness-shared) applies to these roles too, exactly like the alpha/beta case above — assert the
-# actual resolver source still checks the project path before the shared one.
-grep -q 'projects/.*agents' "$ROOT/scripts/agent-spawn.sh" \
-  || { echo "agent-spawn.sh no longer appears to resolve a project-local agents/ override" >&2; exit 1; }
+# Global fallback behavior for these roles is already exercised end-to-end by the alpha/beta
+# project-local-override case above (role_path() resolution), so it is not re-asserted here by
+# grepping agent-spawn.sh's source text — that grep matched only a `die` message, not the resolver,
+# and broke on a wording change with zero marginal coverage (round 1 review, finding 8).
 
 # Routing language: RULES.md and orchestrator.md must require deps-researcher before adopting or
 # replacing an npm package and before a major upgrade, and state patch/minor routes there only on
