@@ -25,9 +25,13 @@ or a named session. The pane must contain the intended Codex lead and expose a s
 `agent_session.value` through `herdr agent get`. Registration captures the task generation, source
 agent binding, canonical metadata and report paths, recipient pane, and recipient session identity.
 A second `start` for the same task generation is rejected. After a claim is `delivered`, `start`
-may atomically archive it and register the strictly newer canonical task generation created by an
-engineer/reviewer/fixer handoff. The archived metadata retains the original source and recipient
-binding. A stale generation, rollback, or any replacement of a non-delivered claim is rejected.
+may archive it and register the strictly newer canonical task generation created by an
+engineer/reviewer/fixer handoff. The archive is first written through a temporary file and renamed;
+only then is the canonical record atomically replaced. If either commit fails, the old delivered
+canonical record remains byte-for-byte intact and no prompt is sent. A retry reuses an existing
+archive only when it matches that canonical record; a conflicting archive is never overwritten.
+The archived metadata retains the original source and recipient binding. A stale generation,
+rollback, or any replacement of a non-delivered claim is rejected.
 
 State is stored atomically under `.harness-state/codex-completion/<task-id>.meta`:
 

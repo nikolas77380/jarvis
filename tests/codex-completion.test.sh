@@ -63,6 +63,23 @@ esac
 FAKE
 chmod +x "$FAKEBIN/herdr"
 
+cat > "$FAKEBIN/mv" <<'FAKE'
+#!/usr/bin/env bash
+set -euo pipefail
+destination=
+for argument in "$@"; do destination=$argument; done
+case "${FAKE_MV_FAIL_KIND:-}" in
+  canonical)
+    [ "$destination" != "${FAKE_CANONICAL_STATE:-}" ] || exit 71
+    ;;
+  archive)
+    case "$destination" in */codex-completion/archive/*.meta) exit 72 ;; esac
+    ;;
+esac
+/bin/mv "$@"
+FAKE
+chmod +x "$FAKEBIN/mv"
+
 cd "$REPO"
 git init -q
 git config user.email test@example.com
@@ -85,6 +102,7 @@ reset_fake() {
   printf '%s\n' idle > "$FAKE_RECIPIENT_STATUS"
   printf '%s\n' codex-session-1 > "$FAKE_RECIPIENT_ID"
   unset FAKE_SOURCE_WAIT_FAIL FAKE_RECIPIENT_WAIT_FAIL FAKE_AFTER_SOURCE FAKE_PROMPT_FAIL
+  unset FAKE_MV_FAIL_KIND FAKE_CANONICAL_STATE
 }
 
 write_task() {
@@ -197,6 +215,76 @@ grep -q '^recipient_agent_session=codex-session-3$' "$REPO/.harness-state/codex-
 advance_task T1H 2 shell-reviewer stale-reviewer
 assert_duplicate_rejected T1H 3
 grep -q '^source_generation=3$' "$REPO/.harness-state/codex-completion/T1H.meta"
+
+# Failed archive and replacement commits leave the prior delivered claim canonical and byte-identical.
+# A retry reuses only a matching immutable archive and still delivers the newer generation once.
+reset_fake
+write_task T1F 1 root
+scripts/codex-completion-watch.sh start T1F --session default --pane w9:p9
+advance_task T1F 2 shell-reviewer source-reviewer
+canonical_state="$REPO/.harness-state/codex-completion/T1F.meta"
+expected_state="$TMP/T1F-delivered.meta"
+cp "$canonical_state" "$expected_state"
+reset_fake
+export FAKE_CANONICAL_STATE="$canonical_state"
+export FAKE_MV_FAIL_KIND=canonical
+if scripts/codex-completion-watch.sh start T1F --session default --pane w9:p9 >/dev/null 2>&1; then
+  echo 'replacement write failure unexpectedly registered' >&2
+  exit 1
+fi
+cmp -s "$expected_state" "$canonical_state"
+scripts/codex-completion-watch.sh status T1F | jq -e '.status == "delivered" and .source.generation == 1' >/dev/null
+[ "$(prompt_count)" = 0 ] || { echo 'replacement write failure sent a prompt' >&2; exit 1; }
+existing_archive=$(find "$archive_dir" -type f -name 'T1F.g1.a1.*.meta')
+[ -n "$existing_archive" ]
+cmp -s "$expected_state" "$existing_archive"
+unset FAKE_MV_FAIL_KIND
+scripts/codex-completion-watch.sh start T1F --session default --pane w9:p9
+assert_state T1F delivered
+grep -q '^source_generation=2$' "$canonical_state"
+[ "$(prompt_count)" = 1 ] || { echo 'replacement write retry did not deliver exactly once' >&2; exit 1; }
+
+reset_fake
+write_task T1A 1 root
+scripts/codex-completion-watch.sh start T1A --session default --pane w9:p9
+advance_task T1A 2 shell-reviewer source-reviewer
+canonical_state="$REPO/.harness-state/codex-completion/T1A.meta"
+expected_state="$TMP/T1A-delivered.meta"
+cp "$canonical_state" "$expected_state"
+reset_fake
+export FAKE_CANONICAL_STATE="$canonical_state"
+export FAKE_MV_FAIL_KIND=archive
+if scripts/codex-completion-watch.sh start T1A --session default --pane w9:p9 >/dev/null 2>&1; then
+  echo 'archive write failure unexpectedly registered' >&2
+  exit 1
+fi
+cmp -s "$expected_state" "$canonical_state"
+scripts/codex-completion-watch.sh status T1A | jq -e '.status == "delivered" and .source.generation == 1' >/dev/null
+[ "$(prompt_count)" = 0 ] || { echo 'archive write failure sent a prompt' >&2; exit 1; }
+unset FAKE_MV_FAIL_KIND
+scripts/codex-completion-watch.sh start T1A --session default --pane w9:p9
+assert_state T1A delivered
+[ "$(prompt_count)" = 1 ] || { echo 'archive write retry did not deliver exactly once' >&2; exit 1; }
+
+# An existing archive is never overwritten when it differs from the canonical delivered claim.
+reset_fake
+write_task T1C 1 root
+scripts/codex-completion-watch.sh start T1C --session default --pane w9:p9
+advance_task T1C 2 shell-reviewer source-reviewer
+canonical_state="$REPO/.harness-state/codex-completion/T1C.meta"
+expected_state="$TMP/T1C-delivered.meta"
+cp "$canonical_state" "$expected_state"
+conflicting_archive="$archive_dir/T1C.g1.a1.rollover.meta"
+printf '%s\n' 'unrelated immutable archive' > "$conflicting_archive"
+reset_fake
+if scripts/codex-completion-watch.sh start T1C --session default --pane w9:p9 >/dev/null 2>&1; then
+  echo 'conflicting archive unexpectedly allowed replacement' >&2
+  exit 1
+fi
+cmp -s "$expected_state" "$canonical_state"
+grep -qx 'unrelated immutable archive' "$conflicting_archive"
+scripts/codex-completion-watch.sh status T1C | jq -e '.status == "delivered" and .source.generation == 1' >/dev/null
+[ "$(prompt_count)" = 0 ] || { echo 'conflicting archive sent a prompt' >&2; exit 1; }
 
 # A timestamp id in the reserved root project follows the same path.
 reset_fake

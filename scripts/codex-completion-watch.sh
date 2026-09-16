@@ -151,18 +151,46 @@ registration_preflight() {
 }
 
 archive_delivered_claim() {
-  local id=$1 archive_dir archive_path stamp
+  local id=$1 archive_dir archive_path archive_tmp
   archive_dir="$HARNESS_STATE/codex-completion/archive"
   if [ -e "$archive_dir" ]; then
     [ -d "$archive_dir" ] && [ ! -L "$archive_dir" ] \
-      || die "completion watcher archive is malformed: $archive_dir"
+      || { CODEX_COMPLETION_ERROR="completion watcher archive is malformed: $archive_dir"; return 1; }
   else
-    mkdir -p "$archive_dir"
+    mkdir -p "$archive_dir" \
+      || { CODEX_COMPLETION_ERROR="completion watcher archive directory could not be created: $archive_dir"; return 1; }
   fi
-  stamp=$(date -u '+%Y%m%dT%H%M%SZ')
-  archive_path="$archive_dir/$id.g$CC_SOURCE_GENERATION.a$CC_ATTEMPT.$stamp.meta"
-  [ ! -e "$archive_path" ] || die "completion watcher archive already exists: $archive_path"
-  mv "$CC_FILE" "$archive_path"
+  archive_path="$archive_dir/$id.g$CC_SOURCE_GENERATION.a$CC_ATTEMPT.rollover.meta"
+  if [ -e "$archive_path" ]; then
+    if [ ! -f "$archive_path" ] || [ -L "$archive_path" ]; then
+      CODEX_COMPLETION_ERROR="completion watcher archive is malformed: $archive_path"
+      return 1
+    fi
+    if ! cmp -s "$CC_FILE" "$archive_path"; then
+      CODEX_COMPLETION_ERROR="completion watcher archive differs from canonical delivered state: $archive_path"
+      return 1
+    fi
+    return 0
+  fi
+  if ! archive_tmp=$(mktemp "$archive_dir/.$id.g$CC_SOURCE_GENERATION.a$CC_ATTEMPT.XXXXXX"); then
+    CODEX_COMPLETION_ERROR="completion watcher archive temporary file could not be created"
+    return 1
+  fi
+  if ! cp "$CC_FILE" "$archive_tmp"; then
+    rm -f "$archive_tmp"
+    CODEX_COMPLETION_ERROR="completion watcher archive copy failed"
+    return 1
+  fi
+  if ! chmod 600 "$archive_tmp"; then
+    rm -f "$archive_tmp"
+    CODEX_COMPLETION_ERROR="completion watcher archive permissions could not be set"
+    return 1
+  fi
+  if ! mv "$archive_tmp" "$archive_path"; then
+    rm -f "$archive_tmp"
+    CODEX_COMPLETION_ERROR="completion watcher archive could not be committed: $archive_path"
+    return 1
+  fi
 }
 
 register_claim() {
@@ -193,7 +221,11 @@ register_claim() {
     state_lock_release
     die "$error"
   fi
-  if [ "$REGISTRATION_REPLACES_DELIVERED" = 1 ]; then archive_delivered_claim "$id"; fi
+  if [ "$REGISTRATION_REPLACES_DELIVERED" = 1 ] && ! archive_delivered_claim "$id"; then
+    error=$CODEX_COMPLETION_ERROR
+    state_lock_release
+    die "$error"
+  fi
   CC_FILE=$existing
   CC_TASK=$id
   CC_STATUS=pending
