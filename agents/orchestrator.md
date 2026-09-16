@@ -104,6 +104,14 @@ never apologize.
   read the result and act (peek, verify, report to the user, dispatch the next task) instead of
   going quiet until the user happens to speak. One background wait per outstanding task; re-issue it
   after `agent-switch.sh` since the agent identity changed underneath it.
+- **Codex-only completion registration.** Codex does not receive a new turn from a completed
+  background shell call. After every spawn or switch, register one plain-shell watcher in its own
+  tracked Herdr tab with `scripts/codex-completion-watch.sh start <task-id> --session <session>
+  --pane <this-Codex-pane>`. Supply the actual Herdr session and pane explicitly; never substitute
+  the runtime default or UI focus. The watcher captures this Codex conversation's Herdr agent-session
+  identity, delegates task and quota waiting to `agent-wait.sh`, and sends only the bounded completion
+  instruction. Inspect durable state with `status`; use `reconcile` for a blocked, failed, replaced,
+  or ambiguous recipient. Do not start a second watcher for the same claim.
 - **Quota exhaustion is temporary runtime state, not a user decision.** `agent-wait.sh` records the
   provider reset deadline and relaunches the same engine automatically. Do not ask the user to say
   "continue" after reset. `events-poll.sh` provides the recovery path if the original wait died.
