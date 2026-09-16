@@ -24,7 +24,10 @@ scripts/codex-completion-watch.sh status <task-id>
 or a named session. The pane must contain the intended Codex lead and expose a stable
 `agent_session.value` through `herdr agent get`. Registration captures the task generation, source
 agent binding, canonical metadata and report paths, recipient pane, and recipient session identity.
-A second `start` for the same task is rejected.
+A second `start` for the same task generation is rejected. After a claim is `delivered`, `start`
+may atomically archive it and register the strictly newer canonical task generation created by an
+engineer/reviewer/fixer handoff. The archived metadata retains the original source and recipient
+binding. A stale generation, rollback, or any replacement of a non-delivered claim is rejected.
 
 State is stored atomically under `.harness-state/codex-completion/<task-id>.meta`:
 
@@ -57,7 +60,8 @@ does not resend. Inspect the Codex transcript and Herdr state before choosing:
   accepts the risk of a duplicate prompt; the watcher never makes that choice automatically.
 - `--supersede` archives any non-delivered claim and removes the active claim. Use it when the task
   generation or recipient conversation was intentionally replaced, then issue a fresh `start` with
-  the new explicit session and pane. Delivered claims cannot be superseded.
+  the new explicit session and pane. Delivered claims cannot be manually superseded; a subsequent
+  `start` archives one only when canonical task metadata proves a strictly newer generation.
 
 If quota recovery relaunches the source agent, the watcher accepts the new generation only when the
 task's agent-history ledger contains a continuous same-engine `Provider quota reset.` switch chain.

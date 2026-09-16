@@ -120,6 +120,27 @@ assert_state() {
   [ "$actual" = "$expected" ] || { echo "expected $id state $expected, got $actual" >&2; exit 1; }
 }
 
+advance_task() {
+  local id=$1 generation=$2 role=$3 agent_name=$4 meta
+  meta="$REPO/.harness-state/$id.meta"
+  sed -i.bak \
+    -e "s/^generation=.*/generation=$generation/" \
+    -e "s/^agent=.*/agent=$role/" \
+    -e "s/^agent_name=.*/agent_name=$agent_name/" \
+    "$meta"
+  rm -f "$meta.bak"
+}
+
+assert_duplicate_rejected() {
+  local id=$1 expected_prompts=$2
+  if scripts/codex-completion-watch.sh start "$id" --session default --pane w9:p9 >/dev/null 2>&1; then
+    echo "duplicate registration unexpectedly succeeded for $id" >&2
+    exit 1
+  fi
+  [ "$(prompt_count)" = "$expected_prompts" ] \
+    || { echo "duplicate registration changed the prompt count for $id" >&2; exit 1; }
+}
+
 # Normal delivery supports a frozen legacy id in a nested project and records exactly one prompt.
 reset_fake
 write_task T1 1 nested
@@ -135,6 +156,47 @@ if scripts/codex-completion-watch.sh start T1 --session default --pane w9:p9 >/d
   exit 1
 fi
 [ "$(prompt_count)" = 1 ] || { echo 'duplicate registration sent a second prompt' >&2; exit 1; }
+
+# A delivered task claim rolls forward across engineer, reviewer, and fixer generations. Each
+# generation delivers exactly once, duplicate and rollback starts fail closed, and archived bindings
+# retain the original source and recipient identities.
+reset_fake
+write_task T1H 1 root
+scripts/codex-completion-watch.sh start T1H --session default --pane w9:p9
+assert_state T1H delivered
+assert_duplicate_rejected T1H 1
+
+advance_task T1H 2 shell-reviewer source-reviewer
+printf '%s\n' codex-session-2 > "$FAKE_RECIPIENT_ID"
+scripts/codex-completion-watch.sh start T1H --session default --pane w9:p9
+assert_state T1H delivered
+assert_duplicate_rejected T1H 2
+
+advance_task T1H 3 shell-engineer source-fixer
+printf '%s\n' codex-session-3 > "$FAKE_RECIPIENT_ID"
+scripts/codex-completion-watch.sh start T1H --session default --pane w9:p9
+assert_state T1H delivered
+assert_duplicate_rejected T1H 3
+
+archive_dir="$REPO/.harness-state/codex-completion/archive"
+generation_one_archive=$(find "$archive_dir" -type f -name 'T1H.g1.a1.*.meta')
+generation_two_archive=$(find "$archive_dir" -type f -name 'T1H.g2.a1.*.meta')
+[ -n "$generation_one_archive" ] && [ -n "$generation_two_archive" ]
+grep -q '^status=delivered$' "$generation_one_archive"
+grep -q '^source_role=shell-engineer$' "$generation_one_archive"
+grep -q '^source_agent_name=source-agent$' "$generation_one_archive"
+grep -q '^recipient_agent_session=codex-session-1$' "$generation_one_archive"
+grep -q '^status=delivered$' "$generation_two_archive"
+grep -q '^source_role=shell-reviewer$' "$generation_two_archive"
+grep -q '^source_agent_name=source-reviewer$' "$generation_two_archive"
+grep -q '^recipient_agent_session=codex-session-2$' "$generation_two_archive"
+grep -q '^source_generation=3$' "$REPO/.harness-state/codex-completion/T1H.meta"
+grep -q '^source_agent_name=source-fixer$' "$REPO/.harness-state/codex-completion/T1H.meta"
+grep -q '^recipient_agent_session=codex-session-3$' "$REPO/.harness-state/codex-completion/T1H.meta"
+
+advance_task T1H 2 shell-reviewer stale-reviewer
+assert_duplicate_rejected T1H 3
+grep -q '^source_generation=3$' "$REPO/.harness-state/codex-completion/T1H.meta"
 
 # A timestamp id in the reserved root project follows the same path.
 reset_fake
@@ -177,6 +239,17 @@ printf '%s\n' idle > "$FAKE_RECIPIENT_STATUS"
 scripts/codex-completion-watch.sh reconcile T4 --retry >/dev/null
 assert_state T4 delivered
 [ "$(prompt_count)" = 1 ] || { echo 'explicit blocked-recipient retry did not deliver exactly once' >&2; exit 1; }
+
+# A newer source generation cannot replace an unresolved claim.
+reset_fake
+write_task T4R
+export FAKE_AFTER_SOURCE=blocked
+scripts/codex-completion-watch.sh start T4R --session default --pane w9:p9
+assert_state T4R waiting
+advance_task T4R 2 shell-reviewer source-reviewer
+assert_duplicate_rejected T4R 0
+assert_state T4R waiting
+grep -q '^source_generation=1$' "$REPO/.harness-state/codex-completion/T4R.meta"
 
 # A busy recipient is waited on outside the model. Failure to settle is diagnosable and sends none.
 reset_fake
@@ -267,6 +340,10 @@ if scripts/codex-completion-watch.sh start T10 --session default --pane w9:p9 >/
 fi
 assert_state T10 uncertain
 [ "$(prompt_count)" = 1 ] || { echo 'ambiguous delivery should record one attempted prompt' >&2; exit 1; }
+advance_task T10 2 shell-reviewer source-reviewer
+assert_duplicate_rejected T10 1
+assert_state T10 uncertain
+grep -q '^source_generation=1$' "$REPO/.harness-state/codex-completion/T10.meta"
 scripts/codex-completion-watch.sh reconcile T10 >/dev/null
 [ "$(prompt_count)" = 1 ] || { echo 'reconcile automatically resent an ambiguous prompt' >&2; exit 1; }
 scripts/codex-completion-watch.sh reconcile T10 --delivered >/dev/null

@@ -122,16 +122,62 @@ fail_claim() {
   return 1
 }
 
+registration_preflight() {
+  local id=$1 existing=$2
+  REGISTRATION_REPLACES_DELIVERED=0
+  source_capture "$id"
+  [ -e "$existing" ] || return 0
+  if [ ! -f "$existing" ] || [ -L "$existing" ]; then
+    CODEX_COMPLETION_ERROR="completion watcher state is malformed: $existing"
+    return 1
+  fi
+  codex_completion_load "$id"
+  if [ "$CC_TASK" != "$id" ]; then
+    CODEX_COMPLETION_ERROR="completion watcher state names a different task: $CC_TASK"
+    return 1
+  fi
+  if [ "$CC_STATUS" != delivered ]; then
+    CODEX_COMPLETION_ERROR="completion watcher already registered for $id in state $CC_STATUS; use status or reconcile"
+    return 1
+  fi
+  case "$CC_SOURCE_GENERATION" in
+    ''|*[!0-9]*) CODEX_COMPLETION_ERROR="completion watcher has invalid source generation: $CC_SOURCE_GENERATION"; return 1 ;;
+  esac
+  if [ "$SOURCE_GENERATION" -le "$CC_SOURCE_GENERATION" ]; then
+    CODEX_COMPLETION_ERROR="completion watcher already delivered generation $CC_SOURCE_GENERATION for $id; canonical generation $SOURCE_GENERATION is not newer"
+    return 1
+  fi
+  REGISTRATION_REPLACES_DELIVERED=1
+}
+
+archive_delivered_claim() {
+  local id=$1 archive_dir archive_path stamp
+  archive_dir="$HARNESS_STATE/codex-completion/archive"
+  if [ -e "$archive_dir" ]; then
+    [ -d "$archive_dir" ] && [ ! -L "$archive_dir" ] \
+      || die "completion watcher archive is malformed: $archive_dir"
+  else
+    mkdir -p "$archive_dir"
+  fi
+  stamp=$(date -u '+%Y%m%dT%H%M%SZ')
+  archive_path="$archive_dir/$id.g$CC_SOURCE_GENERATION.a$CC_ATTEMPT.$stamp.meta"
+  [ ! -e "$archive_path" ] || die "completion watcher archive already exists: $archive_path"
+  mv "$CC_FILE" "$archive_path"
+}
+
 register_claim() {
-  local id=$1 session=$2 pane=$3 snapshot identity existing
+  local id=$1 session=$2 pane=$3 snapshot identity existing error
   require_fleet_mutation_allowed
   codex_completion_require_token "$session" 'recipient session'
   codex_completion_require_token "$pane" 'recipient pane'
 
   state_lock_acquire "$id"
   existing=$(codex_completion_meta "$id")
-  [ ! -e "$existing" ] || { state_lock_release; die "completion watcher already registered for $id; use status or reconcile"; }
-  source_capture "$id"
+  if ! registration_preflight "$id" "$existing"; then
+    error=$CODEX_COMPLETION_ERROR
+    state_lock_release
+    die "$error"
+  fi
   state_lock_release
 
   CC_RECIPIENT_PANE=$pane
@@ -142,8 +188,12 @@ register_claim() {
   identity=$CODEX_COMPLETION_RECIPIENT_ID
 
   state_lock_acquire "$id"
-  [ ! -e "$existing" ] || { state_lock_release; die "completion watcher already registered for $id; use status or reconcile"; }
-  source_capture "$id"
+  if ! registration_preflight "$id" "$existing"; then
+    error=$CODEX_COMPLETION_ERROR
+    state_lock_release
+    die "$error"
+  fi
+  if [ "$REGISTRATION_REPLACES_DELIVERED" = 1 ]; then archive_delivered_claim "$id"; fi
   CC_FILE=$existing
   CC_TASK=$id
   CC_STATUS=pending
