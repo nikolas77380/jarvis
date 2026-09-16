@@ -43,5 +43,22 @@ Commit the task card and INDEX entry from /private/tmp/jarvis-codex-wake-plan (o
 
 PR #7 is open at implementation commit `1b84ae5`. The focused watcher matrix, requested compatibility
 tests, full 20-file shell suite, static shell checks, plan check, and ownership check passed. The
-real tracked-tab Herdr wake remains intentionally unclaimed until the documented harmless-task smoke
-test runs from the canonical checkout. Full report: `reports/260916-1454-001-shell-engineer.md`.
+original engineer run did not claim a live tracked-tab wake. Full report:
+`reports/260916-1454-001-shell-engineer.md`.
+
+## Review round 1
+
+The reviewer requested one P1 fix at reviewed tip `33fca99`: a delivered task-level watcher claim
+prevented registration after the same task advanced from engineer to reviewer or fixer. Fix commit
+`2d1af26` now permits only a strictly newer canonical source generation to replace a delivered claim,
+archives the prior metadata intact under the existing task lock, and continues to reject duplicate,
+rollback, waiting, failed, delivering, and uncertain replacements. The regression exercises three
+generations, exactly one prompt per generation, duplicate rejection for each, rollback rejection, and
+preservation of archived source and recipient identities.
+
+Focused watcher, requested compatibility, fail-fast 20-file shell suite, shellcheck, Bash syntax,
+plan, ownership, and diff checks passed. The full suite used process-local Git configuration
+`init.defaultBranch=master` as requested by the reviewer; no global configuration changed. The lead
+separately observed live generation 2 delivery to `default:w1:p2`, Codex session
+`01a0aa05-11f1-7842-8f2e-1ddd07b4091e`, at `2026-09-16T12:27:41Z`; this is lead-observed evidence,
+not an engineer rerun. Round 2 must inspect only `33fca99..HEAD` and this P1 closure.
