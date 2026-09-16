@@ -1,10 +1,10 @@
 # 260916-1454-001 — Codex completion wake without model polling
 
-**Status:** in-progress · **Owner:** shell-engineer · **Depends on:** —
+**Status:** in-review · **Owner:** lead · **Depends on:** —
 **Engine:** codex
 **Validation:** strict
-PR: none
-**Next:** scripts/agent-spawn.sh 260916-1454-001
+PR: #7
+**Next:** scripts/review-rounds.sh 260916-1454-001
 **Owns:** scripts/codex-completion-watch.sh, scripts/codex-completion-lib.sh, tests/codex-completion.test.sh, docs/codex-completion.md, additive Codex-only instructions in agents/orchestrator.md
 
 ## Goal
@@ -38,3 +38,10 @@ Commit the task card and INDEX entry from /private/tmp/jarvis-codex-wake-plan (o
 - Independent logic-tier review approves; actual universal checks pass.
 - An actual tracked watcher resumes the intended Codex session after a harmless task completes, without repeated model polling.
 - State and docs accurately record limits, recovery and next action.
+
+## Engineer checkpoint
+
+PR #7 is open at implementation commit `1b84ae5`. The focused watcher matrix, requested compatibility
+tests, full 20-file shell suite, static shell checks, plan check, and ownership check passed. The
+real tracked-tab Herdr wake remains intentionally unclaimed until the documented harmless-task smoke
+test runs from the canonical checkout. Full report: `reports/260916-1454-001-shell-engineer.md`.
