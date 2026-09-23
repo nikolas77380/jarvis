@@ -64,6 +64,27 @@ from a session that is already leading. **Reasoning and measurements: `docs/deci
   count should read, not a native subagent's own transcript. The same command hands a task BACK from
   reviewer to engineer for a fix round, and from one reviewer to the next round's reviewer — always
   same task id, same worktree, bumped generation.
+- **An agent owns its worktree's disposal.** One task id owns one worktree for its whole life, and
+  whoever created it is answerable for it being gone afterwards. Commit the work, push the branch,
+  and commit `reports/<task>-<agent>.md` on that branch as the rules already require: a file left in
+  the tree that git has never heard of makes the worktree permanently unreclaimable, because nothing
+  is willing to guess whether it mattered. The ordinary route out is
+  `scripts/task-teardown.sh <task-id> --execute` once the card is `done` and the branch is published;
+  it archives the run's evidence first and never deletes the branch. A worktree you created outside
+  `agent-spawn.sh` - `EnterWorktree`, treehouse, a hand-run `git worktree add` - is yours to remove
+  when you are finished with it, and no harness hook will ever do it for you.
+- **Never `rm -rf` a worktree, and never delete one by hand.** `scripts/worktree-sweep.sh` is the
+  backstop for everything that never reached teardown; it is a dry run unless given `--execute`, it
+  never deletes a branch, and it refuses to touch a worktree with a live agent in it. It refuses
+  removal outright on three states and names the path and the count for each: modified tracked
+  files, commits neither reachable from a remote ref nor present upstream by content, and untracked
+  non-ignored files. Read the refusal and land the work instead; going around the gate is the user's
+  decision, not an agent's. Measured 2026-09-23: 36 abandoned worktrees, 17 of them over three weeks
+  old, on a machine at 94% full. Three held unpushed commits and one held a 17 MB `demo/` directory
+  of screenshots and a run description that no git object knew about - a cleanup that read only git
+  state would have deleted it in silence. Their size was about 45 GB by `du` and about a fifth of
+  that in real disk, because APFS clones pnpm's store rather than copying it; the sweep labels its
+  totals `GB (du)` for that reason, and a `du` figure is never quoted as space reclaimed.
 - **Model tier follows how many decisions are left in the task after briefing, not the task's topic.**
   An implementer may be wrong about how well it did the work — never about what the work is. A brief
   that still says "find out X, then choose A or B" is a planning task in implementation clothes:

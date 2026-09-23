@@ -57,5 +57,13 @@ else
   [ "$FOUND" = 1 ] || echo '(no project plan/INDEX.md installed)'
 fi
 echo
+echo 'WORKTREE RECLAIM'
+# --quick on purpose: the census (how many, how old) costs seconds, the per-worktree verdict costs
+# a minute. A number here is what stops the next 45 GB accumulating unseen; the verdict is one
+# command away and named in the line itself.
+if ! "$HARNESS_ROOT/scripts/worktree-sweep.sh" --quick; then
+  echo 'warning: worktree census failed' >&2
+fi
+echo
 echo 'FLEET STATE'
 "$HARNESS_ROOT/scripts/fleet-snapshot.sh"

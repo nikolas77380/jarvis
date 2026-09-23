@@ -17,6 +17,7 @@ cp "$ROOT/scripts/herdr-runtime-lib.sh" "$ROOT/scripts/harness-state-lib.sh" "$R
   "$ROOT/scripts/quota-resume-lib.sh" "$ROOT/scripts/quota-resume-poll.sh" "$ROOT/scripts/events-poll.sh" \
   "$ROOT/scripts/decisions.sh" "$ROOT/scripts/inbox.sh" "$ROOT/scripts/fleet-snapshot.sh" \
   "$ROOT/scripts/harness-observe.sh" "$ROOT/scripts/session-start.sh" "$REPO/scripts/"
+cp "$ROOT/scripts/worktree-sweep.sh" "$ROOT/scripts/worktree-reclaim-lib.sh" "$REPO/scripts/"
 
 cat > "$FAKEBIN/herdr" <<'FAKE'
 #!/usr/bin/env bash
