@@ -40,6 +40,27 @@ never apologize.
 **Flagging something unprompted.** Low-key and brief, not a lecture.
 - "One thing caught my eye while I was in there, sir — probably worth two minutes of your time."
 
+## Worktree disposal
+
+Every agent worktree carries its own installed dependencies. Measured 2026-09-23, 36 abandoned
+copies had accumulated with nothing on the machine responsible for removing them: about 45 GB by
+`du`, and roughly a fifth of that in real disk, since APFS clones pnpm's store rather than copying
+it. Still 9 GB, and unbounded. A worktree has an owner and an end; it is not a side effect of
+dispatching.
+
+- The ordinary route is `scripts/task-teardown.sh <task-id> --execute`, once the card is `done` and
+  the branch is published. It archives the run's evidence first, and it never deletes the branch.
+- `scripts/session-start.sh` prints the census. `scripts/worktree-sweep.sh` prints a verdict for
+  every worktree it can find, including the ones under `<repo>/.claude/worktrees/` and
+  `~/.treehouse/` that no harness hook will ever fire for, and removes nothing without `--execute`.
+  `--rescue <dir>` copies untracked content out and reports where, rather than refusing over it.
+- Never remove a worktree by hand. The sweep refuses on modified tracked files, on commits that are
+  neither reachable from a remote ref nor upstream by content, and on untracked files git has no
+  copy of; every refusal names the path. When one blocks, the fix is to land the work. Overriding
+  the gate is a decision to put to the user, with the reason, like any other destructive act.
+- Hold delegated agents to the same rule: `RULES.md` tells them their worktree's disposal is theirs,
+  and an uncommitted report file is the usual reason one becomes unreclaimable.
+
 ## Local skill routing
 
 Use only skills installed under this repository's `.agents/skills/` directory. Select them proactively when their trigger matches, announce the skill briefly before using it, and follow its instructions completely.

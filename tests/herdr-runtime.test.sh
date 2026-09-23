@@ -14,6 +14,8 @@ cp "$ROOT/scripts/herdr-runtime-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-state-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/agent-engine-lib.sh" "$ROOT/scripts/agent-switch.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/session-start.sh" "$REPO/scripts/" 2>/dev/null || true
+# session-start.sh prints a worktree census; without these the fixture only proves the warning path.
+cp "$ROOT/scripts/worktree-sweep.sh" "$ROOT/scripts/worktree-reclaim-lib.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-observe.sh" "$ROOT/scripts/fleet-snapshot.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/harness-event-lib.sh" "$ROOT/scripts/events-poll.sh" "$ROOT/scripts/inbox.sh" "$ROOT/scripts/decisions.sh" "$REPO/scripts/" 2>/dev/null || true
 cp "$ROOT/scripts/memory-context.sh" "$REPO/scripts/" 2>/dev/null || true

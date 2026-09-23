@@ -41,6 +41,7 @@ scripts/owns-check.sh          refuses two ACTIVE cards claiming the same file o
 memory/                        portable pipeline lessons for an agent's memory store, with its own README
 scripts/agent-*.sh             spawn, list, inspect, wait on, steer, focus and stop Herdr agents
 scripts/task-teardown.sh       archive a completed task and safely remove only its worktree
+scripts/worktree-sweep.sh      safety-gated reclaim of abandoned agent worktrees; dry run by default
 scripts/session-start.sh       read-only plan/runtime recovery view
 scripts/clean-slate-protocol.sh bounded review, project checks, PR and CI gate
 scripts/fleet-snapshot.sh      structured local state for every recorded or planned task
