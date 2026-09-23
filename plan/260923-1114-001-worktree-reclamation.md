@@ -1,6 +1,6 @@
 # 260923-1114-001 - worktree reclamation
 
-**Status:** in-review · **Owner:** lead · **Blocks:** — · **Depends on:** —
+**Status:** in-review · **Owner:** lead · **Blocks:** - · **Depends on:** -
 **Validation:** strict
 **Engine:** claude
 PR: #8
