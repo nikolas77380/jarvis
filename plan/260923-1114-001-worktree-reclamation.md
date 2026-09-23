@@ -3,7 +3,7 @@
 **Status:** in-review · **Owner:** lead · **Blocks:** — · **Depends on:** —
 **Validation:** strict
 **Engine:** claude
-PR: none yet
+PR: #8
 **Next:** review the PR against `origin/main`, then decide whether the sweep should run on a
 schedule or stay a command the lead invokes; the shared pnpm store question below is answered and
 needs no card.

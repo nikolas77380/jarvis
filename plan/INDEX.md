@@ -13,7 +13,7 @@ Owner: which agent, `user` when the decision is theirs, `lead` for the orchestra
 | [260902-1204-001](260902-1204-001-macos-bootstrap.md)            | macos bootstrap            | in-review   | shell-engineer | 260831-2017-001 | PR #3 · approved, reconciling with main      |
 | [260902-1411-001](260902-1411-001-global-js-agent-roles.md)      | global js agent roles      | in-review   | deputy         | —               | PR #4 · five adapted global JS roles         |
 | [260902-1545-001](260902-1545-001-capability-aware-design-qa.md) | capability aware design qa | open        | deputy         | —               | inventory capability routing                 |
-| [260923-1114-001](260923-1114-001-worktree-reclamation.md)       | worktree reclamation       | in-review   | lead           | —               | safety-gated sweep; du vs real disk measured |
+| [260923-1114-001](260923-1114-001-worktree-reclamation.md)       | worktree reclamation       | in-review   | lead           | —               | PR #8 · safety-gated sweep; du vs real |
 
 ## Ordering that is not obvious
 
